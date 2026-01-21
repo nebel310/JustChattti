@@ -16,6 +16,7 @@ from models.auth import BlacklistedTokenOrm
 from models.auth import RefreshTokenOrm
 from models.auth import UserOrm
 from schemas.auth import SUserRegister
+from schemas.auth import SRefreshToken
 
 
 
@@ -92,9 +93,10 @@ class UserRepository:
     
     
     @classmethod
-    async def get_user_by_refresh_token(cls, refresh_token: str) -> UserOrm | None:
+    async def get_user_by_refresh_token(cls, refresh_token_data: SRefreshToken) -> UserOrm | None:
         """Получает пользователя по refresh токену."""
         async with new_session() as session:
+            refresh_token = refresh_token_data.refresh
             query = select(RefreshTokenOrm).where(RefreshTokenOrm.token == refresh_token)
             result = await session.execute(query)
             refresh_token_orm = result.scalars().first()

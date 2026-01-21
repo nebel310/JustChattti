@@ -114,3 +114,10 @@ class ErrorResponse(BaseModel):
 class ValidationErrorResponse(BaseModel):
     """Схема ответа для ошибок валидации."""
     detail: str = Field(..., example="Пользователь с таким username уже существует")
+
+
+
+
+class SRefreshToken(BaseModel):
+    """Схема получения refresh токена"""
+    refresh: str = Field(..., example="eyJhbG...")

@@ -7,6 +7,7 @@ from repositories.auth import UserRepository
 from schemas.auth import ErrorResponse
 from schemas.auth import LoginResponse
 from schemas.auth import LogoutResponse
+from schemas.auth import SRefreshToken
 from schemas.auth import RefreshResponse
 from schemas.auth import RegisterResponse
 from schemas.auth import SUser
@@ -118,34 +119,34 @@ async def login_user(login_data: SUserLogin):
         500: {"model": ErrorResponse}
     }
 )
-async def refresh_token(refresh_token: str):
+async def refresh_token(refresh_token_data: SRefreshToken):
     """
     Обновление access токена с помощью refresh токена.
     
     Refresh токен должен быть валидным и не истекшим.
     Возвращает новый access токен.
     """
-    try:
-        user = await UserRepository.get_user_by_refresh_token(refresh_token)
+    # try:
+    user = await UserRepository.get_user_by_refresh_token(refresh_token_data)
+    
+    if not user:
+        raise HTTPException(status_code=400, detail="Неверный refresh токен")
+    
+    new_access_token = create_access_token(data={"sub": user.username})
+    
+    return RefreshResponse(
+        access_token=new_access_token,
+        token_type="bearer"
+    )
         
-        if not user:
-            raise HTTPException(status_code=400, detail="Неверный refresh токен")
+    # except HTTPException:
+    #     raise
         
-        new_access_token = create_access_token(data={"sub": user.username})
-        
-        return RefreshResponse(
-            access_token=new_access_token,
-            token_type="bearer"
-        )
-        
-    except HTTPException:
-        raise
-        
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail="Внутренняя ошибка сервера"
-        )
+    # except Exception as e:
+    #     raise HTTPException(
+    #         status_code=500,
+    #         detail="Внутренняя ошибка сервера"
+    #     )
 
 
 

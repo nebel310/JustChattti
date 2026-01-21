@@ -15,10 +15,7 @@ from router.auth import router as auth_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Управление жизненным циклом приложения."""
-    await delete_tables()
-    print('База очищена')
-    
+    """Управление жизненным циклом приложения."""    
     await create_tables()
     print('База готова к работе')
     
