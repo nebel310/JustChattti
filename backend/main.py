@@ -44,7 +44,7 @@ def custom_openapi():
 - Телеграм: @vlados7529
 - Телефон: +7 (916) 054 44-35  
 - GitHub: github.com/nebel310
-- Email: m2316174@edu.misis.ru
+- Email: vladislav75290@gmail.com
 
 *Этот бэкенд был создан как базовый шаблон для быстрого старта проектов*""",
         routes=app.routes,
@@ -82,7 +82,9 @@ app.openapi = custom_openapi
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://127.0.0.1:5500"],
+    allow_origins=[
+        "http:0.0.0.0:1000"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -100,6 +102,6 @@ if __name__ == "__main__":
     uvicorn.run(
         "main:app",
         reload=True,
-        port=3001,
+        port=1000,
         host="0.0.0.0"
     )

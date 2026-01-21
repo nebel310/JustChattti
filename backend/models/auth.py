@@ -16,8 +16,7 @@ class UserOrm(Model):
     __tablename__ = 'users'
     
     id: Mapped[int] = mapped_column(primary_key=True)
-    username: Mapped[str]
-    email: Mapped[str] = mapped_column(unique=True, nullable=False)
+    username: Mapped[str] = mapped_column(unique=True, nullable=False)
     hashed_password: Mapped[str]
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), 

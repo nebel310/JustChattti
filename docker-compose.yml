@@ -20,7 +20,7 @@ services:
     build: ./backend
     container_name: backend
     ports:
-      - "3001:3001"
+      - "1000:1000"
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - SECRET_KEY=${SECRET_KEY}
@@ -37,7 +37,7 @@ services:
 #   build: ./frontend
 #   container_name: frontend
 #   ports:
-#     - "5500:5500"  # !!! ВНИМАНИЕ: Порт может измениться
+#     - "1001:1001"  # !!! ВНИМАНИЕ: Порт может измениться
 #   volumes:
 #     - ./frontend:/app
 #   depends_on:

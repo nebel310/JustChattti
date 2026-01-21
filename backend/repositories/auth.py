@@ -37,17 +37,16 @@ class UserRepository:
     async def register_user(cls, user_data: SUserRegister) -> int:
         """Регистрирует нового пользователя."""
         async with new_session() as session:
-            query = select(UserOrm).where(UserOrm.email == user_data.email)
+            query = select(UserOrm).where(UserOrm.username == user_data.username)
             result = await session.execute(query)
             
             if result.scalars().first():
-                raise ValueError("Пользователь с таким email уже существует")
+                raise ValueError("Пользователь с таким username уже существует")
               
             hashed_password = pwd_context.hash(user_data.password)
             
             user = UserOrm(
                 username=user_data.username,
-                email=user_data.email,
                 hashed_password=hashed_password
             )
             
@@ -59,10 +58,10 @@ class UserRepository:
     
     
     @classmethod
-    async def authenticate_user(cls, email: str, password: str) -> UserOrm | None:
-        """Аутентифицирует пользователя по email и паролю."""
+    async def authenticate_user(cls, username: str, password: str) -> UserOrm | None:
+        """Аутентифицирует пользователя по username и паролю."""
         async with new_session() as session:
-            query = select(UserOrm).where(UserOrm.email == email)
+            query = select(UserOrm).where(UserOrm.username == username)
             result = await session.execute(query)
             user = result.scalars().first()
             
@@ -73,10 +72,10 @@ class UserRepository:
     
     
     @classmethod
-    async def get_user_by_email(cls, email: str) -> UserOrm | None:
-        """Получает пользователя по email."""
+    async def get_user_by_username(cls, username: str) -> UserOrm | None:
+        """Получает пользователя по username."""
         async with new_session() as session:
-            query = select(UserOrm).where(UserOrm.email == email)
+            query = select(UserOrm).where(UserOrm.username == username)
             result = await session.execute(query)
             
             return result.scalars().first()

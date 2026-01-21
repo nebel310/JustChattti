@@ -2,7 +2,6 @@ from datetime import datetime
 
 from pydantic import BaseModel
 from pydantic import ConfigDict
-from pydantic import EmailStr
 from pydantic import Field
 
 
@@ -11,7 +10,6 @@ from pydantic import Field
 class SUserRegister(BaseModel):
     """Схема для регистрации нового пользователя."""
     username: str
-    email: EmailStr
     password: str
     password_confirm: str
     
@@ -19,8 +17,7 @@ class SUserRegister(BaseModel):
         json_schema_extra={
             "examples": [
                 {
-                    "username": "john_doe",
-                    "email": "john@example.com",
+                    "username": "test-user",
                     "password": "securepassword123",
                     "password_confirm": "securepassword123"
                 }
@@ -33,14 +30,14 @@ class SUserRegister(BaseModel):
 
 class SUserLogin(BaseModel):
     """Схема для входа в систему."""
-    email: EmailStr
+    username: str
     password: str
     
     model_config = ConfigDict(
         json_schema_extra={
             "examples": [
                 {
-                    "email": "john@example.com",
+                    "username": "test-user",
                     "password": "securepassword123"
                 }
             ]
@@ -54,7 +51,6 @@ class SUser(BaseModel):
     """Схема для отображения информации о пользователе."""
     id: int
     username: str
-    email: EmailStr
     created_at: datetime
 
     model_config = ConfigDict(
@@ -63,8 +59,7 @@ class SUser(BaseModel):
             "examples": [
                 {
                     "id": 1,
-                    "username": "john_doe",
-                    "email": "john@example.com",
+                    "username": "test-user",
                     "created_at": "2024-01-01T12:00:00Z"
                 }
             ]
@@ -118,4 +113,4 @@ class ErrorResponse(BaseModel):
 
 class ValidationErrorResponse(BaseModel):
     """Схема ответа для ошибок валидации."""
-    detail: str = Field(..., example="Пользователь с таким email уже существует")
+    detail: str = Field(..., example="Пользователь с таким username уже существует")

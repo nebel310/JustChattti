@@ -42,7 +42,7 @@ async def register_user(user_data: SUserRegister):
     Регистрация нового пользователя.
     
     Пароль и подтверждение пароля должны совпадать.
-    Email должен быть уникальным.
+    username должен быть уникальным.
     """
     try:
         user_id = await UserRepository.register_user(user_data)
@@ -69,7 +69,7 @@ async def register_user(user_data: SUserRegister):
     "/login",
     response_model=LoginResponse,
     responses={
-        400: {"model": ErrorResponse, "description": "Неверный email или пароль"},
+        400: {"model": ErrorResponse, "description": "Неверный username или пароль"},
         500: {"model": ErrorResponse}
     }
 )
@@ -82,12 +82,12 @@ async def login_user(login_data: SUserLogin):
     Refresh токен используется для получения нового access токена.
     """
     try:
-        user = await UserRepository.authenticate_user(login_data.email, login_data.password)
+        user = await UserRepository.authenticate_user(login_data.username, login_data.password)
         
         if not user:
-            raise HTTPException(status_code=400, detail="Неверный email или пароль")
+            raise HTTPException(status_code=400, detail="Неверный username или пароль")
         
-        access_token = create_access_token(data={"sub": user.email})
+        access_token = create_access_token(data={"sub": user.username})
         refresh_token = await UserRepository.create_refresh_token(user.id)
         
         return LoginResponse(
@@ -131,7 +131,7 @@ async def refresh_token(refresh_token: str):
         if not user:
             raise HTTPException(status_code=400, detail="Неверный refresh токен")
         
-        new_access_token = create_access_token(data={"sub": user.email})
+        new_access_token = create_access_token(data={"sub": user.username})
         
         return RefreshResponse(
             access_token=new_access_token,
