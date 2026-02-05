@@ -1,8 +1,6 @@
-from datetime import datetime
+from datetime import date, datetime
 
-from pydantic import BaseModel
-from pydantic import ConfigDict
-from pydantic import Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 
@@ -26,8 +24,6 @@ class SUserRegister(BaseModel):
     )
 
 
-
-
 class SUserLogin(BaseModel):
     """Схема для входа в систему."""
     username: str
@@ -45,12 +41,14 @@ class SUserLogin(BaseModel):
     )
 
 
-
-
 class SUser(BaseModel):
     """Схема для отображения информации о пользователе."""
     id: int
     username: str
+    avatar_id: int | None = None
+    bio: str | None = None
+    gender: str | None = None
+    birth_date: date | None = None
     created_at: datetime
 
     model_config = ConfigDict(
@@ -60,6 +58,10 @@ class SUser(BaseModel):
                 {
                     "id": 1,
                     "username": "test-user",
+                    "avatar_id": 123,
+                    "bio": "Привет! Я новый пользователь",
+                    "gender": "male",
+                    "birth_date": "1990-01-01",
                     "created_at": "2024-01-01T12:00:00Z"
                 }
             ]
@@ -67,6 +69,31 @@ class SUser(BaseModel):
     )
 
 
+class SUserUpdate(BaseModel):
+    """Схема для обновления данных пользователя."""
+    avatar_id: int | None = None
+    bio: str | None = Field(None, max_length=250)
+    gender: str | None = None
+    birth_date: date | None = None
+    
+    @field_validator('bio')
+    def validate_bio_length(cls, v):
+        if v is not None and len(v) > 250:
+            raise ValueError('Био не может превышать 250 символов')
+        return v
+    
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "avatar_id": 123,
+                    "bio": "Новое био пользователя",
+                    "gender": "female",
+                    "birth_date": "1995-05-15"
+                }
+            ]
+        }
+    )
 
 
 class RegisterResponse(BaseModel):
@@ -74,8 +101,6 @@ class RegisterResponse(BaseModel):
     success: bool = Field(..., example=True)
     user_id: int = Field(..., example=1)
     message: str = Field(..., example="Регистрация прошла успешно")
-
-
 
 
 class LoginResponse(BaseModel):
@@ -87,14 +112,10 @@ class LoginResponse(BaseModel):
     token_type: str = Field(..., example="bearer")
 
 
-
-
 class RefreshResponse(BaseModel):
     """Схема ответа для обновления токена."""
     access_token: str = Field(..., example="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
     token_type: str = Field(..., example="bearer")
-
-
 
 
 class LogoutResponse(BaseModel):
@@ -102,20 +123,14 @@ class LogoutResponse(BaseModel):
     success: bool = Field(..., example=True)
 
 
-
-
 class ErrorResponse(BaseModel):
     """Схема ответа для ошибок."""
     detail: str = Field(..., example="Сообщение об ошибке")
 
 
-
-
 class ValidationErrorResponse(BaseModel):
     """Схема ответа для ошибок валидации."""
     detail: str = Field(..., example="Пользователь с таким username уже существует")
-
-
 
 
 class SRefreshToken(BaseModel):

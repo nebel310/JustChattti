@@ -11,6 +11,7 @@ from schemas.auth import SRefreshToken
 from schemas.auth import RefreshResponse
 from schemas.auth import RegisterResponse
 from schemas.auth import SUser
+from schemas.auth import SUserUpdate
 from schemas.auth import SUserLogin
 from schemas.auth import SUserRegister
 from schemas.auth import ValidationErrorResponse
@@ -25,7 +26,6 @@ router = APIRouter(
     prefix="/auth",
     tags=['Пользователи']
 )
-
 
 
 
@@ -60,10 +60,8 @@ async def register_user(user_data: SUserRegister):
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail="Внутренняя ошибка сервера"
+            detail=str(e)
         )
-
-
 
 
 @router.post(
@@ -109,8 +107,6 @@ async def login_user(login_data: SUserLogin):
         )
 
 
-
-
 @router.post(
     "/refresh",
     response_model=RefreshResponse,
@@ -126,29 +122,27 @@ async def refresh_token(refresh_token_data: SRefreshToken):
     Refresh токен должен быть валидным и не истекшим.
     Возвращает новый access токен.
     """
-    # try:
-    user = await UserRepository.get_user_by_refresh_token(refresh_token_data)
-    
-    if not user:
-        raise HTTPException(status_code=400, detail="Неверный refresh токен")
-    
-    new_access_token = create_access_token(data={"sub": user.username})
-    
-    return RefreshResponse(
-        access_token=new_access_token,
-        token_type="bearer"
-    )
+    try:
+        user = await UserRepository.get_user_by_refresh_token(refresh_token_data)
         
-    # except HTTPException:
-    #     raise
+        if not user:
+            raise HTTPException(status_code=400, detail="Неверный refresh токен")
         
-    # except Exception as e:
-    #     raise HTTPException(
-    #         status_code=500,
-    #         detail="Внутренняя ошибка сервера"
-    #     )
-
-
+        new_access_token = create_access_token(data={"sub": user.username})
+        
+        return RefreshResponse(
+            access_token=new_access_token,
+            token_type="bearer"
+        )
+        
+    except HTTPException:
+        raise
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail="Внутренняя ошибка сервера"
+        )
 
 
 @router.post(
@@ -183,8 +177,6 @@ async def logout(
         )
 
 
-
-
 @router.get(
     "/me",
     response_model=SUser,
@@ -202,6 +194,65 @@ async def get_current_user_info(current_user: UserOrm = Depends(get_current_user
     """
     try:
         return SUser.model_validate(current_user)
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail="Внутренняя ошибка сервера"
+        )
+
+
+@router.patch(
+    "/user-update",
+    response_model=SUser,
+    responses={
+        401: {"model": ErrorResponse, "description": "Не авторизован"},
+        400: {"model": ValidationErrorResponse},
+        500: {"model": ErrorResponse}
+    }
+)
+async def update_user(
+    update_data: SUserUpdate,
+    current_user: UserOrm = Depends(get_current_user)
+):
+    """
+    Обновление данных пользователя.
+    
+    Позволяет обновить био, пол, дату рождения и аватарку.
+    Требует валидный access токен.
+    """
+    try:
+        # Проверяем, существует ли файл аватарки, если он указан
+        if update_data.avatar_id is not None:
+            from database import new_session
+            from models.files import FileOrm
+            from sqlalchemy import select
+            
+            async with new_session() as session:
+                query = select(FileOrm).where(FileOrm.id == update_data.avatar_id)
+                result = await session.execute(query)
+                file = result.scalars().first()
+                
+                if not file:
+                    raise HTTPException(
+                        status_code=400, 
+                        detail="Файл аватарки не найден"
+                    )
+        
+        # Обновляем данные пользователя
+        update_dict = update_data.model_dump(exclude_unset=True)
+        updated_user = await UserRepository.update_user(current_user.id, update_dict)
+        
+        if not updated_user:
+            raise HTTPException(status_code=404, detail="Пользователь не найден")
+        
+        return SUser.model_validate(updated_user)
+        
+    except HTTPException:
+        raise
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
         
     except Exception as e:
         raise HTTPException(

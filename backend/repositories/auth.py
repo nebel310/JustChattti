@@ -157,3 +157,67 @@ class UserRepository:
             
             session.add(blacklisted_token)
             await session.commit()
+    
+    
+    @classmethod
+    async def update_user(cls, user_id: int, update_data: dict) -> UserOrm | None:
+        """Обновляет данные пользователя."""
+        async with new_session() as session:
+            query = select(UserOrm).where(UserOrm.id == user_id)
+            result = await session.execute(query)
+            user = result.scalars().first()
+            
+            if not user:
+                return None
+            
+            # Обновляем только переданные поля
+            for key, value in update_data.items():
+                if value is not None:
+                    setattr(user, key, value)
+            
+            await session.commit()
+            await session.refresh(user)
+            
+            return user
+    
+    
+    @classmethod
+    async def get_user_with_avatar_url(cls, user_id: int) -> dict | None:
+        """Получает пользователя с URL аватарки."""
+        async with new_session() as session:
+            from models.files import FileOrm
+            from utils.minio_client import minio
+            
+            # Делаем join с таблицей файлов
+            query = select(UserOrm, FileOrm).outerjoin(
+                FileOrm, UserOrm.avatar_id == FileOrm.id
+            ).where(UserOrm.id == user_id)
+            
+            result = await session.execute(query)
+            row = result.first()
+            
+            if not row:
+                return None
+            
+            user, avatar_file = row
+            
+            user_data = {
+                "id": user.id,
+                "username": user.username,
+                "avatar_id": user.avatar_id,
+                "bio": user.bio,
+                "gender": user.gender,
+                "birth_date": user.birth_date,
+                "created_at": user.created_at,
+            }
+            
+            # Если есть аватарка, генерируем URL
+            if avatar_file:
+                try:
+                    user_data["avatar_url"] = await minio.get_url(avatar_file.filename)
+                except Exception:
+                    user_data["avatar_url"] = None
+            else:
+                user_data["avatar_url"] = None
+            
+            return user_data

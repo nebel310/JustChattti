@@ -9,6 +9,7 @@ from fastapi.openapi.utils import get_openapi
 from database import create_tables
 from database import delete_tables
 from router.auth import router as auth_router
+from router.files import router as files_router
 
 
 
@@ -25,25 +26,22 @@ async def lifespan(app: FastAPI):
 
 
 
-
 def custom_openapi():
     """Кастомная OpenAPI схема с настройками безопасности."""
     if app.openapi_schema:
         return app.openapi_schema
         
     openapi_schema = get_openapi(
-        title="FastAPI Base Template - Разработано Григорьевым Владиславом Алексеевичем",
+        title="JustChattti API",
         version="1.0.0",
-        description="""Базовый шаблон FastAPI с JWT аутентификацией
+        description="""Бэкенд для мессенджера JustChattti
     
 **Разработчик:** Григорьев Владислав Алексеевич
 **Контакты:** 
 - Телеграм: @vlados7529
 - Телефон: +7 (916) 054 44-35  
 - GitHub: github.com/nebel310
-- Email: vladislav75290@gmail.com
-
-*Этот бэкенд был создан как базовый шаблон для быстрого старта проектов*""",
+- Email: vladislav75290@gmail.com""",
         routes=app.routes,
     )
     
@@ -58,6 +56,10 @@ def custom_openapi():
     secured_paths = {
         ("/auth/me", "get"): [{"Bearer": []}],
         ("/auth/logout", "post"): [{"Bearer": []}],
+        ("/auth/user-update", "patch"): [{"Bearer": []}],
+        ("/files/upload", "post"): [{"Bearer": []}],
+        ("/files/{file_id}", "get"): [{"Bearer": []}],
+        ("/files/{file_id}", "delete"): [{"Bearer": []}],
     }
     
     for (path, method), security in secured_paths.items():
@@ -70,18 +72,14 @@ def custom_openapi():
 
 
 
-
 app = FastAPI(lifespan=lifespan)
 app.openapi = custom_openapi
 
 
 
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http:0.0.0.0:1000"
-    ],
+    allow_origins=["*"],  # Временное решение для разработки
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -89,9 +87,8 @@ app.add_middleware(
 
 
 
-
 app.include_router(auth_router)
-
+app.include_router(files_router)
 
 
 

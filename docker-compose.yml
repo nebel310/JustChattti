@@ -1,7 +1,7 @@
 services:
   db:
     image: postgres:17.2
-    container_name: postgres_db
+    container_name: chat_postgres_db
     environment:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
@@ -15,10 +15,28 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  minio:
+    image: minio/minio
+    container_name: chat_minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
+    command: server --console-address ":9001" /data
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
   
   backend:
     build: ./backend
-    container_name: backend
+    container_name: chat_backend
     ports:
       - "1000:1000"
     environment:
@@ -27,22 +45,20 @@ services:
       - ALGORITHM=${ALGORITHM}
       - REFRESH_TOKEN_EXPIRE_DAYS=${REFRESH_TOKEN_EXPIRE_DAYS}
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES}
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
+      - MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME:-images}
+      - PORT=1000
     depends_on:
       db:
         condition: service_healthy
+      minio:
+        condition: service_healthy
     volumes:
       - ./backend:/app
-  
-# frontend:
-#   build: ./frontend
-#   container_name: frontend
-#   ports:
-#     - "1001:1001"  # !!! ВНИМАНИЕ: Порт может измениться
-#   volumes:
-#     - ./frontend:/app
-#   depends_on:
-#     - backend  # Зависит от сервера (FastAPI)
 
 
 volumes:
   postgres_data:
+  minio_data:  # Добавлено
