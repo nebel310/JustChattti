@@ -11,6 +11,7 @@ from database import delete_tables
 from router.auth import router as auth_router
 from router.files import router as files_router
 from router.chat import router as chat_router
+from router.search import router as search_router
 from websocket.router import router as websocket_router
 from utils.minio_client import minio
 
@@ -36,7 +37,7 @@ def custom_openapi():
         
     openapi_schema = get_openapi(
         title="JustChattti API",
-        version="2.0.0",
+        version="1.0.0",
         description="""Бэкенд для мессенджера JustChattti с поддержкой чатов и WebRTC
     
 **Разработчик:** Григорьев Владислав Алексеевич
@@ -80,6 +81,12 @@ def custom_openapi():
         ("/chats/messages/{message_id}", "delete"): [{"Bearer": []}],
         ("/chats/messages/mark-read", "post"): [{"Bearer": []}],
         ("/chats/{chat_id}/calls", "post"): [{"Bearer": []}],
+        ("/search/users", "post"): [{"Bearer": []}],
+        ("/search/users/username/{username}", "get"): [{"Bearer": []}],
+        ("/search/messages/global", "post"): [{"Bearer": []}],
+        ("/search/messages/chat/{chat_id}", "post"): [{"Bearer": []}],
+        ("/search/messages/username/{username}", "post"): [{"Bearer": []}],
+        ("/search/messages/sender/{user_id}", "get"): [{"Bearer": []}],
     }
     
     for (path, method), security in secured_paths.items():
@@ -110,6 +117,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(files_router)
 app.include_router(chat_router)
+app.include_router(search_router)
 app.include_router(websocket_router)
 
 
