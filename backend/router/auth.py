@@ -220,10 +220,11 @@ async def update_user(
     
     Позволяет обновить био, пол, дату рождения и аватарку.
     Требует валидный access токен.
+    Можно не передавать те параметры которые пользователь не обновлял
     """
     try:
-        # Проверяем, существует ли файл аватарки, если он указан
         if update_data.avatar_id is not None:
+            # Исключительное говно по кодстайлу, но так реальлно проще в данном конкретном случае!
             from database import new_session
             from models.files import FileOrm
             from sqlalchemy import select
@@ -239,7 +240,6 @@ async def update_user(
                         detail="Файл аватарки не найден"
                     )
         
-        # Обновляем данные пользователя
         update_dict = update_data.model_dump(exclude_unset=True)
         updated_user = await UserRepository.update_user(current_user.id, update_dict)
         
