@@ -14,8 +14,30 @@ class MinioClient:
         self.bucket = settings.minio_bucket
     
     
+    async def _ensure_bucket_exists(self):
+        """Создает бакет, если он не существует"""
+        try:
+            async with self.session.client(
+                's3',
+                endpoint_url=self.endpoint,
+                aws_access_key_id=settings.minio_access_key,
+                aws_secret_access_key=settings.minio_secret_key,
+                region_name='us-east-1'
+            ) as client:
+                try:
+                    await client.head_bucket(Bucket=self.bucket)
+                    print(f"Bucket '{self.bucket}' already exists")
+                except Exception:
+                    # Создаем бакет, если его нет
+                    await client.create_bucket(Bucket=self.bucket)
+                    print(f"Bucket '{self.bucket}' created successfully")
+        except Exception as e:
+            print(f"Error checking/creating bucket: {e}")
+    
+    
     async def upload(self, file: UploadFile) -> str:
         """Загружает файл и возвращает его уникальное имя"""
+        await self._ensure_bucket_exists()
         
         ext = self._validate_file(file)
         

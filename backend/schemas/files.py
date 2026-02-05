@@ -10,6 +10,16 @@ class SUploadFile(BaseModel):
     """Схема для указания метаданных при загрузке файла"""
     is_avatar: bool = False
     is_voice_message: bool = False
+    
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "is_avatar": False,
+                "is_voice_message": False
+            }
+        }
+    )
 
 
 class SUploadFileResponse(BaseModel):

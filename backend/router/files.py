@@ -1,7 +1,4 @@
-from fastapi import APIRouter
-from fastapi import Depends
-from fastapi import HTTPException
-from fastapi import UploadFile, File, Path
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Path, Form
 
 from repositories.files import FileRepository
 from schemas.files import (
@@ -28,7 +25,8 @@ router = APIRouter(
     }
 )
 async def upload_file(
-    file_data: SUploadFile,
+    is_avatar: bool = Form(False),
+    is_voice_message: bool = Form(False),
     file: UploadFile = File(...),
     current_user: UserOrm = Depends(get_current_user)
 ):
@@ -39,6 +37,11 @@ async def upload_file(
     Можно указать тип файла (аватарка, голосовое сообщение).
     """
     try:
+        file_data = SUploadFile(
+            is_avatar=is_avatar,
+            is_voice_message=is_voice_message
+        )
+        
         answer = await FileRepository.upload_file(file, file_data, current_user.id)
         return SUploadFileResponse(
             success=True,
