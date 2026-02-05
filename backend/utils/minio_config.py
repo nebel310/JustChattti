@@ -16,7 +16,7 @@ class Settings(BaseSettings):
         ".mp3", ".wav", ".ogg", ".m4a",
         ".pdf", ".doc", ".docx", ".txt", ".zip"
     }
-    max_file_size_mb: int = 50
+    max_file_size_mb: int = 100
     
     @property
     def max_file_size_bytes(self) -> int:
