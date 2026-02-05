@@ -10,6 +10,7 @@ from jose import JWTError
 from passlib.context import CryptContext
 from sqlalchemy import delete
 from sqlalchemy import select
+from sqlalchemy import update
 
 from database import new_session
 from models.auth import BlacklistedTokenOrm
@@ -48,7 +49,9 @@ class UserRepository:
             
             user = UserOrm(
                 username=user_data.username,
-                hashed_password=hashed_password
+                hashed_password=hashed_password,
+                is_online=False,
+                last_seen=datetime.now(timezone.utc)
             )
             
             session.add(user)
@@ -90,6 +93,81 @@ class UserRepository:
             result = await session.execute(query)
             
             return result.scalars().first()
+    
+    
+    @classmethod
+    async def get_public_user_info(cls, user_id: int) -> dict | None:
+        """Получает публичную информацию о пользователе по ID."""
+        async with new_session() as session:
+            query = select(
+                UserOrm.id,
+                UserOrm.username,
+                UserOrm.avatar_id,
+                UserOrm.bio,
+                UserOrm.gender,
+                UserOrm.birth_date,
+                UserOrm.is_online,
+                UserOrm.last_seen,
+                UserOrm.created_at
+            ).where(UserOrm.id == user_id)
+            
+            result = await session.execute(query)
+            row = result.first()
+            
+            if not row:
+                return None
+            
+            return {
+                "id": row.id,
+                "username": row.username,
+                "avatar_id": row.avatar_id,
+                "bio": row.bio,
+                "gender": row.gender,
+                "birth_date": row.birth_date,
+                "is_online": row.is_online,
+                "last_seen": row.last_seen,
+                "created_at": row.created_at
+            }
+    
+    
+    @classmethod
+    async def get_user_status(cls, user_id: int) -> dict | None:
+        """Получает статус пользователя (онлайн/оффлайн и последняя активность)."""
+        async with new_session() as session:
+            query = select(
+                UserOrm.id,
+                UserOrm.username,
+                UserOrm.is_online,
+                UserOrm.last_seen
+            ).where(UserOrm.id == user_id)
+            
+            result = await session.execute(query)
+            row = result.first()
+            
+            if not row:
+                return None
+            
+            return {
+                "user_id": row.id,
+                "username": row.username,
+                "is_online": row.is_online,
+                "last_seen": row.last_seen
+            }
+    
+    
+    @classmethod
+    async def update_user_status(cls, user_id: int, is_online: bool):
+        """Обновляет статус пользователя (онлайн/оффлайн)."""
+        async with new_session() as session:
+            update_query = update(UserOrm).where(
+                UserOrm.id == user_id
+            ).values(
+                is_online=is_online,
+                last_seen=datetime.now(timezone.utc)
+            )
+            
+            await session.execute(update_query)
+            await session.commit()
     
     
     @classmethod
@@ -188,8 +266,18 @@ class UserRepository:
             from models.files import FileOrm
             from utils.minio_client import minio
             
-            # Делаем join с таблицей файлов
-            query = select(UserOrm, FileOrm).outerjoin(
+            query = select(
+                UserOrm.id,
+                UserOrm.username,
+                UserOrm.avatar_id,
+                UserOrm.bio,
+                UserOrm.gender,
+                UserOrm.birth_date,
+                UserOrm.is_online,
+                UserOrm.last_seen,
+                UserOrm.created_at,
+                FileOrm.filename
+            ).outerjoin(
                 FileOrm, UserOrm.avatar_id == FileOrm.id
             ).where(UserOrm.id == user_id)
             
@@ -199,22 +287,22 @@ class UserRepository:
             if not row:
                 return None
             
-            user, avatar_file = row
-            
             user_data = {
-                "id": user.id,
-                "username": user.username,
-                "avatar_id": user.avatar_id,
-                "bio": user.bio,
-                "gender": user.gender,
-                "birth_date": user.birth_date,
-                "created_at": user.created_at,
+                "id": row.id,
+                "username": row.username,
+                "avatar_id": row.avatar_id,
+                "bio": row.bio,
+                "gender": row.gender,
+                "birth_date": row.birth_date,
+                "is_online": row.is_online,
+                "last_seen": row.last_seen,
+                "created_at": row.created_at,
             }
             
             # Если есть аватарка, генерируем URL
-            if avatar_file:
+            if row.filename:
                 try:
-                    user_data["avatar_url"] = await minio.get_url(avatar_file.filename)
+                    user_data["avatar_url"] = await minio.get_url(row.filename)
                 except Exception:
                     user_data["avatar_url"] = None
             else:

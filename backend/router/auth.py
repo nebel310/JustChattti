@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 from fastapi import Depends
 from fastapi import HTTPException
+from fastapi import Path
 
 from models.auth import UserOrm
 from repositories.auth import UserRepository
@@ -11,6 +12,8 @@ from schemas.auth import SRefreshToken
 from schemas.auth import RefreshResponse
 from schemas.auth import RegisterResponse
 from schemas.auth import SUser
+from schemas.auth import SPublicUser
+from schemas.auth import SUserStatus
 from schemas.auth import SUserUpdate
 from schemas.auth import SUserLogin
 from schemas.auth import SUserRegister
@@ -85,6 +88,9 @@ async def login_user(login_data: SUserLogin):
         
         if not user:
             raise HTTPException(status_code=400, detail="Неверный username или пароль")
+        
+        # Обновляем статус пользователя как онлайн
+        await UserRepository.update_user_status(user.id, True)
         
         access_token = create_access_token(data={"sub": user.username})
         refresh_token = await UserRepository.create_refresh_token(user.id)
@@ -162,11 +168,13 @@ async def logout(
     
     Токен добавляется в черный список.
     Refresh токен пользователя отзывается.
+    Статус пользователя меняется на оффлайн.
     Требует валидный access токен.
     """
     try:
         await UserRepository.add_to_blacklist(token)
         await UserRepository.revoke_refresh_token(current_user.id)
+        await UserRepository.update_user_status(current_user.id, False)
         
         return LogoutResponse(success=True)
         
@@ -223,6 +231,7 @@ async def update_user(
     Можно не передавать те параметры которые пользователь не обновлял
     """
     try:
+        # Проверяем, существует ли файл аватарки, если он указан
         if update_data.avatar_id is not None:
             # Исключительное говно по кодстайлу, но так реальлно проще в данном конкретном случае!
             from database import new_session
@@ -240,6 +249,7 @@ async def update_user(
                         detail="Файл аватарки не найден"
                     )
         
+        # Обновляем данные пользователя
         update_dict = update_data.model_dump(exclude_unset=True)
         updated_user = await UserRepository.update_user(current_user.id, update_dict)
         
@@ -258,4 +268,84 @@ async def update_user(
         raise HTTPException(
             status_code=500,
             detail="Внутренняя ошибка сервера"
+        )
+
+
+@router.get(
+    "/users/{user_id}",
+    response_model=SPublicUser,
+    responses={
+        401: {"model": ErrorResponse, "description": "Не авторизован"},
+        404: {"model": ErrorResponse, "description": "Пользователь не найден"},
+        500: {"model": ErrorResponse}
+    }
+)
+async def get_user_by_id(
+    user_id: int = Path(..., description="ID пользователя"),
+    current_user: UserOrm = Depends(get_current_user)
+):
+    """
+    Получение публичной информации о пользователе по ID.
+    
+    Возвращает публичную информацию о пользователе: username, био, аватарку,
+    онлайн статус и время последней активности.
+    Требует валидный access токен.
+    """
+    try:
+        if user_id == current_user.id:
+            # Если запрашиваем свой профиль, используем полную информацию
+            return SUser.model_validate(current_user)
+        
+        user_info = await UserRepository.get_public_user_info(user_id)
+        
+        if not user_info:
+            raise HTTPException(status_code=404, detail="Пользователь не найден")
+        
+        return SPublicUser.model_validate(user_info)
+        
+    except HTTPException:
+        raise
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
+
+
+@router.get(
+    "/users/{user_id}/status",
+    response_model=SUserStatus,
+    responses={
+        401: {"model": ErrorResponse, "description": "Не авторизован"},
+        404: {"model": ErrorResponse, "description": "Пользователь не найден"},
+        500: {"model": ErrorResponse}
+    }
+)
+async def get_user_status(
+    user_id: int = Path(..., description="ID пользователя"),
+    current_user: UserOrm = Depends(get_current_user)
+):
+    """
+    Получение статуса пользователя по ID.
+    
+    Возвращает информацию о том, онлайн ли пользователь,
+    и когда он был в сети последний раз.
+    Требует валидный access токен.
+    """
+    try:
+        user_status = await UserRepository.get_user_status(user_id)
+        
+        if not user_status:
+            raise HTTPException(status_code=404, detail="Пользователь не найден")
+        
+        return SUserStatus.model_validate(user_status)
+        
+    except HTTPException:
+        raise
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
         )

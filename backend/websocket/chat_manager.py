@@ -5,6 +5,8 @@ from typing import Dict, Set, List, Optional
 
 from fastapi import WebSocket, WebSocketDisconnect
 
+import asyncio
+
 
 
 
@@ -27,6 +29,9 @@ class ConnectionManager:
         self.active_connections[user_id].add(websocket)
         self.connection_users[websocket] = user_id
         
+        # Обновляем статус пользователя как онлайн
+        await self.update_user_status(user_id, True)
+        
         # Уведомляем о подключении пользователя
         await self.broadcast_presence(user_id, True)
     
@@ -43,8 +48,24 @@ class ConnectionManager:
             
             del self.connection_users[websocket]
             
-            # Уведомляем об отключении пользователя
-            asyncio.create_task(self.broadcast_presence(user_id, False))
+            # Обновляем статус пользователя как оффлайн
+            # и уведомляем об отключении
+            asyncio.create_task(self.update_user_status_and_notify(user_id))
+    
+    
+    async def update_user_status_and_notify(self, user_id: int):
+        """Обновляет статус пользователя и уведомляет других"""
+        await self.update_user_status(user_id, False)
+        await self.broadcast_presence(user_id, False)
+    
+    
+    async def update_user_status(self, user_id: int, is_online: bool):
+        """Обновляет статус пользователя в базе данных"""
+        try:
+            from repositories.auth import UserRepository
+            await UserRepository.update_user_status(user_id, is_online)
+        except Exception as e:
+            print(f"Ошибка обновления статуса пользователя {user_id}: {e}")
     
     
     async def subscribe_to_chat(self, websocket: WebSocket, chat_id: int):
@@ -113,7 +134,7 @@ class ConnectionManager:
             "type": "presence",
             "user_id": user_id,
             "is_online": is_online,
-            "last_seen": None if is_online else datetime.now(timezone.utc).isoformat()
+            "last_seen": datetime.now(timezone.utc).isoformat()
         }
         
         # Отправляем всем, кто подписан на чаты с этим пользователем
@@ -169,8 +190,23 @@ class ConnectionManager:
             return
         
         try:
+            # Импортируем здесь, чтобы избежать циклических импортов
             from repositories.chat import MessageRepository
             from schemas.chat import MessageCreate
+            
+            # Валидируем данные для голосовых сообщений
+            if data.get("message_type") == "voice":
+                metadata = data.get("metadata", {})
+                if "duration" not in metadata:
+                    raise ValueError("Для голосовых сообщений требуется duration в metadata")
+                
+                # Преобразуем duration в число
+                try:
+                    metadata["duration"] = float(metadata["duration"])
+                except (ValueError, TypeError):
+                    raise ValueError("duration должен быть числом")
+                
+                data["metadata"] = metadata
             
             # Сохраняем сообщение в БД
             message_data = MessageCreate(**data)
@@ -195,12 +231,16 @@ class ConnectionManager:
                 "status": "sent"
             }, user_id)
             
-        except Exception as e:
+        except ValueError as e:
             await self.send_to_user({
                 "type": "error",
                 "error": str(e)
             }, user_id)
+        except Exception as e:
+            await self.send_to_user({
+                "type": "error",
+                "error": "Внутренняя ошибка сервера"
+            }, user_id)
 
 
-import asyncio
 manager = ConnectionManager()

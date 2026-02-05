@@ -49,6 +49,8 @@ class SUser(BaseModel):
     bio: str | None = None
     gender: str | None = None
     birth_date: date | None = None
+    is_online: bool
+    last_seen: datetime
     created_at: datetime
 
     model_config = ConfigDict(
@@ -62,7 +64,63 @@ class SUser(BaseModel):
                     "bio": "Привет! Я новый пользователь",
                     "gender": "male",
                     "birth_date": "1990-01-01",
+                    "is_online": True,
+                    "last_seen": "2024-01-01T12:00:00Z",
                     "created_at": "2024-01-01T12:00:00Z"
+                }
+            ]
+        }
+    )
+
+
+class SPublicUser(BaseModel):
+    """Схема для публичной информации о пользователе."""
+    id: int
+    username: str
+    avatar_id: int | None = None
+    bio: str | None = None
+    gender: str | None = None
+    birth_date: date | None = None
+    is_online: bool
+    last_seen: datetime
+    created_at: datetime
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "examples": [
+                {
+                    "id": 1,
+                    "username": "test-user",
+                    "avatar_id": 123,
+                    "bio": "Привет! Я новый пользователь",
+                    "gender": "male",
+                    "birth_date": "1990-01-01",
+                    "is_online": True,
+                    "last_seen": "2024-01-01T12:00:00Z",
+                    "created_at": "2024-01-01T12:00:00Z"
+                }
+            ]
+        }
+    )
+
+
+class SUserStatus(BaseModel):
+    """Схема для статуса пользователя."""
+    user_id: int
+    username: str
+    is_online: bool
+    last_seen: datetime
+    
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "examples": [
+                {
+                    "user_id": 1,
+                    "username": "test-user",
+                    "is_online": True,
+                    "last_seen": "2024-01-01T12:00:00Z"
                 }
             ]
         }

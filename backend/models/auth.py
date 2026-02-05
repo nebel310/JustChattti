@@ -18,10 +18,15 @@ class UserOrm(Model):
     id: Mapped[int] = mapped_column(primary_key=True)
     username: Mapped[str] = mapped_column(unique=True, nullable=False)
     hashed_password: Mapped[str]
-    avatar_id: Mapped[int | None] = mapped_column(ForeignKey('files.id'), nullable=True)
+    avatar_id: Mapped[int | None] = mapped_column(ForeignKey('files.id', ondelete='SET NULL'), nullable=True)
     bio: Mapped[str | None] = mapped_column(String(250), nullable=True)
     gender: Mapped[str | None] = mapped_column(String(20), nullable=True)
     birth_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    is_online: Mapped[bool] = mapped_column(default=False)
+    last_seen: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), 
+        default=lambda: datetime.now(timezone.utc)
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), 
         default=lambda: datetime.now(timezone.utc)

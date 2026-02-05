@@ -12,6 +12,8 @@ class MinioClient:
         self.session = aioboto3.Session()
         self.endpoint = f"http://{settings.minio_endpoint}"
         self.bucket = settings.minio_bucket
+        self.minio_access_key = settings.minio_access_key
+        self.minio_secret_key = settings.minio_secret_key
     
     
     async def _ensure_bucket_exists(self):
@@ -20,10 +22,11 @@ class MinioClient:
             async with self.session.client(
                 's3',
                 endpoint_url=self.endpoint,
-                aws_access_key_id=settings.minio_access_key,
-                aws_secret_access_key=settings.minio_secret_key,
+                aws_access_key_id=self.minio_access_key,
+                aws_secret_access_key=self.minio_secret_key,
                 region_name='us-east-1'
             ) as client:
+                # Проверяем существование бакета
                 try:
                     await client.head_bucket(Bucket=self.bucket)
                     print(f"Bucket '{self.bucket}' already exists")
@@ -33,10 +36,12 @@ class MinioClient:
                     print(f"Bucket '{self.bucket}' created successfully")
         except Exception as e:
             print(f"Error checking/creating bucket: {e}")
+            # Не падаем, если не удалось создать бакет
     
     
     async def upload(self, file: UploadFile) -> str:
         """Загружает файл и возвращает его уникальное имя"""
+        # Убедимся, что бакет существует перед загрузкой
         await self._ensure_bucket_exists()
         
         ext = self._validate_file(file)
@@ -48,15 +53,15 @@ class MinioClient:
         async with self.session.client(
             's3',
             endpoint_url=self.endpoint,
-            aws_access_key_id=settings.minio_access_key,
-            aws_secret_access_key=settings.minio_secret_key,
+            aws_access_key_id=self.minio_access_key,
+            aws_secret_access_key=self.minio_secret_key,
             region_name='us-east-1'
         ) as client:
             await client.put_object(
                 Bucket=self.bucket,
                 Key=filename,
                 Body=content,
-                ContentType=file.content_type or "image/jpeg"
+                ContentType=file.content_type or "application/octet-stream"
             )
         
         return filename
@@ -68,8 +73,8 @@ class MinioClient:
         async with self.session.client(
             's3',
             endpoint_url=self.endpoint,
-            aws_access_key_id=settings.minio_access_key,
-            aws_secret_access_key=settings.minio_secret_key,
+            aws_access_key_id=self.minio_access_key,
+            aws_secret_access_key=self.minio_secret_key,
             region_name='us-east-1'
         ) as client:
             url = await client.generate_presigned_url(
@@ -87,8 +92,8 @@ class MinioClient:
         async with self.session.client(
             's3',
             endpoint_url=self.endpoint,
-            aws_access_key_id=settings.minio_access_key,
-            aws_secret_access_key=settings.minio_secret_key,
+            aws_access_key_id=self.minio_access_key,
+            aws_secret_access_key=self.minio_secret_key,
             region_name='us-east-1'
         ) as client:
             await client.delete_object(Bucket=self.bucket, Key=filename)
@@ -101,8 +106,8 @@ class MinioClient:
             async with self.session.client(
                 's3',
                 endpoint_url=self.endpoint,
-                aws_access_key_id=settings.minio_access_key,
-                aws_secret_access_key=settings.minio_secret_key,
+                aws_access_key_id=self.minio_access_key,
+                aws_secret_access_key=self.minio_secret_key,
                 region_name='us-east-1'
             ) as client:
                 await client.head_object(Bucket=self.bucket, Key=filename)
