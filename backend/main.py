@@ -10,6 +10,9 @@ from database import create_tables
 from database import delete_tables
 from router.auth import router as auth_router
 from router.files import router as files_router
+from router.chat import router as chat_router
+from websocket.router import router as websocket_router
+from utils.minio_client import minio
 
 
 
@@ -33,8 +36,8 @@ def custom_openapi():
         
     openapi_schema = get_openapi(
         title="JustChattti API",
-        version="1.0.0",
-        description="""Бэкенд для мессенджера JustChattti
+        version="2.0.0",
+        description="""Бэкенд для мессенджера JustChattti с поддержкой чатов и WebRTC
     
 **Разработчик:** Григорьев Владислав Алексеевич
 **Контакты:** 
@@ -44,6 +47,10 @@ def custom_openapi():
 - Email: vladislav75290@gmail.com""",
         routes=app.routes,
     )
+    
+    # Инициализируем components, если их нет
+    if "components" not in openapi_schema:
+        openapi_schema["components"] = {}
     
     openapi_schema["components"]["securitySchemes"] = {
         "Bearer": {
@@ -60,6 +67,16 @@ def custom_openapi():
         ("/files/upload", "post"): [{"Bearer": []}],
         ("/files/{file_id}", "get"): [{"Bearer": []}],
         ("/files/{file_id}", "delete"): [{"Bearer": []}],
+        ("/chats/", "get"): [{"Bearer": []}],
+        ("/chats/", "post"): [{"Bearer": []}],
+        ("/chats/{chat_id}", "get"): [{"Bearer": []}],
+        ("/chats/{chat_id}", "delete"): [{"Bearer": []}],
+        ("/chats/{chat_id}/messages", "get"): [{"Bearer": []}],
+        ("/chats/{chat_id}/messages", "post"): [{"Bearer": []}],
+        ("/chats/messages/{message_id}", "patch"): [{"Bearer": []}],
+        ("/chats/messages/{message_id}", "delete"): [{"Bearer": []}],
+        ("/chats/messages/mark-read", "post"): [{"Bearer": []}],
+        ("/chats/{chat_id}/calls", "post"): [{"Bearer": []}],
     }
     
     for (path, method), security in secured_paths.items():
@@ -79,7 +96,7 @@ app.openapi = custom_openapi
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Временное решение для разработки
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -89,6 +106,8 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(files_router)
+app.include_router(chat_router)
+app.include_router(websocket_router)
 
 
 
