@@ -244,6 +244,73 @@ class ConnectionManager:
         except Exception as e:
             logger.error(f"Необработанная ошибка при обработке сообщения от {user_id}: {e}", exc_info=True)
             await self.send_to_user({"type": "error", "error": "Внутренняя ошибка сервера"}, user_id)
+    
+    
+    async def handle_ack(self, websocket: WebSocket, data: dict):
+        """Обрабатывает подтверждение получения сообщения (доставлено)"""
+        user_id = self.connection_users.get(websocket)
+        if not user_id:
+            return
+        
+        message_ids = data.get("message_ids", [])
+        chat_id = data.get("chat_id")
+        if not message_ids or not chat_id:
+            return
+        
+        try:
+            from repositories.chat import MessageRepository
+            updated_ids = await MessageRepository.mark_as_delivered(message_ids, user_id, chat_id)
+            if updated_ids:
+                # Уведомляем всех участников чата о доставке (можно только отправителей, но для простоты - весь чат)
+                await self.broadcast_to_chat({
+                    "type": "delivered",
+                    "message_ids": updated_ids,
+                    "user_id": user_id  # кто подтвердил доставку
+                }, chat_id)
+        except Exception as e:
+            logger.error(f"Ошибка при подтверждении доставки: {e}")
+
+
+    async def handle_read_receipt(self, websocket: WebSocket, data: dict):
+        """Обрабатывает подтверждение прочтения сообщений"""
+        user_id = self.connection_users.get(websocket)
+        if not user_id:
+            return
+        
+        message_ids = data.get("message_ids", [])
+        chat_id = data.get("chat_id")
+        if not message_ids or not chat_id:
+            return
+        
+        try:
+            from repositories.chat import MessageRepository
+            updated_map = await MessageRepository.mark_as_read(message_ids, user_id, chat_id)
+            if updated_map:
+                # Отправляем каждому отправителю уведомление о прочтении его сообщений
+                for sender_id, msg_ids in updated_map.items():
+                    await self.send_to_user({
+                        "type": "read",
+                        "message_ids": msg_ids,
+                        "user_id": user_id  # кто прочитал
+                    }, sender_id)
+        except Exception as e:
+            logger.error(f"Ошибка при подтверждении прочтения: {e}")
+
+
+    async def notify_message_edited(self, message: dict):
+        """Уведомляет участников чата об edited сообщении"""
+        await self.broadcast_to_chat({
+            "type": "message_edited",
+            "message": message
+        }, message["chat_id"])
+
+    async def notify_message_deleted(self, chat_id: int, message_id: int):
+        """Уведомляет участников чата об удалении сообщения"""
+        await self.broadcast_to_chat({
+            "type": "message_deleted",
+            "message_id": message_id,
+            "chat_id": chat_id
+        }, chat_id)
 
 
 

@@ -435,7 +435,6 @@ class MessageRepository:
                 "reply_to_id": message.reply_to_id,
                 "status": message.status,
                 "edited": message.edited,
-                # Изменяем здесь с metadata на message_metadata
                 "metadata": message.message_metadata,
                 "created_at": message.created_at,
                 "updated_at": message.updated_at
@@ -510,7 +509,7 @@ class MessageRepository:
             for message in reversed(messages):  # Возвращаем в правильном порядке
                 messages_dict.append(await cls._message_to_dict(message))
             
-            # Помечаем сообщения как прочитанные
+            # Помечаем сообщения как прочитанные (игнорируем возвращаемый словарь, но метод может быть использован)
             await cls._mark_messages_as_read(chat_id, user_id, messages, session)
             
             return {
@@ -529,22 +528,31 @@ class MessageRepository:
         user_id: int,
         messages: List[MessageOrm],
         session
-    ):
-        """Помечает сообщения как прочитанные"""
+    ) -> Dict[int, List[int]]:
+        """
+        Помечает сообщения как прочитанные и возвращает словарь {sender_id: [message_ids]}.
+        """
         # Находим непрочитанные сообщения от других пользователей
         unread_message_ids = [
             msg.id for msg in messages 
-            if msg.sender_id != user_id and msg.status == MessageStatus.SENT
+            if msg.sender_id != user_id and msg.status in (MessageStatus.SENT, MessageStatus.DELIVERED)
         ]
         
         if not unread_message_ids:
-            return
+            return {}
+        
+        # Получаем информацию об отправителях перед обновлением
+        sender_query = select(MessageOrm.id, MessageOrm.sender_id).where(
+            MessageOrm.id.in_(unread_message_ids)
+        )
+        sender_result = await session.execute(sender_query)
+        sender_rows = sender_result.all()
+        sender_map = {row.id: row.sender_id for row in sender_rows}
         
         # Обновляем статус сообщений
         update_query = update(MessageOrm).where(
             MessageOrm.id.in_(unread_message_ids)
         ).values(status=MessageStatus.READ)
-        
         await session.execute(update_query)
         
         # Обновляем время последнего прочтения для участника
@@ -552,9 +560,14 @@ class MessageRepository:
             ChatParticipantOrm.chat_id == chat_id,
             ChatParticipantOrm.user_id == user_id
         ).values(last_read_at=datetime.now(timezone.utc))
-        
         await session.execute(update_participant_query)
-        await session.commit()
+        
+        # Группируем по отправителям
+        result = {}
+        for msg_id, sender_id in sender_map.items():
+            result.setdefault(sender_id, []).append(msg_id)
+        
+        return result
     
     
     @classmethod
@@ -594,8 +607,8 @@ class MessageRepository:
         cls, 
         message_id: int, 
         user_id: int
-    ) -> bool:
-        """Удаляет сообщение"""
+    ) -> Optional[int]:
+        """Удаляет сообщение и возвращает chat_id в случае успеха"""
         async with new_session() as session:
             # Получаем сообщение
             message_query = select(MessageOrm).where(MessageOrm.id == message_id)
@@ -603,16 +616,101 @@ class MessageRepository:
             message = message_result.scalar_one_or_none()
             
             if not message or message.sender_id != user_id:
-                return False
+                return None
             
             # Проверяем, что сообщение не старше 24 часов
             time_diff = datetime.now(timezone.utc) - message.created_at
             if time_diff.total_seconds() > 24 * 3600:
                 raise ValueError("Можно удалять только сообщения младше 24 часов")
             
+            chat_id = message.chat_id
+            
             # Удаляем сообщение
             delete_query = delete(MessageOrm).where(MessageOrm.id == message_id)
             await session.execute(delete_query)
             await session.commit()
             
-            return True
+            return chat_id
+    
+    
+    # Новые методы для статусов
+    
+    @classmethod
+    async def mark_as_delivered(cls, message_ids: List[int], user_id: int, chat_id: int) -> List[int]:
+        """
+        Помечает сообщения как доставленные для указанного пользователя.
+        Возвращает список ID сообщений, статус которых действительно изменился.
+        """
+        async with new_session() as session:
+            # Проверяем, что пользователь является участником чата
+            participant_query = select(ChatParticipantOrm).where(
+                ChatParticipantOrm.chat_id == chat_id,
+                ChatParticipantOrm.user_id == user_id
+            )
+            if not (await session.execute(participant_query)).scalar_one_or_none():
+                raise ValueError("Пользователь не является участником чата")
+            
+            # Обновляем только сообщения, которые были в статусе 'sent' и отправлены не этим пользователем
+            query = update(MessageOrm).where(
+                MessageOrm.id.in_(message_ids),
+                MessageOrm.chat_id == chat_id,
+                MessageOrm.sender_id != user_id,
+                MessageOrm.status == MessageStatus.SENT
+            ).values(status=MessageStatus.DELIVERED).returning(MessageOrm.id)
+            
+            result = await session.execute(query)
+            updated_ids = result.scalars().all()
+            await session.commit()
+            return updated_ids
+    
+    
+    @classmethod
+    async def mark_as_read(cls, message_ids: List[int], user_id: int, chat_id: int) -> Dict[int, List[int]]:
+        """
+        Помечает сообщения как прочитанные.
+        Возвращает словарь {sender_id: [message_ids]} для всех сообщений, статус которых изменился.
+        """
+        async with new_session() as session:
+            # Проверяем участие в чате
+            participant_query = select(ChatParticipantOrm).where(
+                ChatParticipantOrm.chat_id == chat_id,
+                ChatParticipantOrm.user_id == user_id
+            )
+            if not (await session.execute(participant_query)).scalar_one_or_none():
+                raise ValueError("Пользователь не является участником чата")
+            
+            # Получаем отправителей до обновления
+            sender_query = select(MessageOrm.id, MessageOrm.sender_id).where(
+                MessageOrm.id.in_(message_ids),
+                MessageOrm.chat_id == chat_id,
+                MessageOrm.sender_id != user_id,
+                MessageOrm.status.in_([MessageStatus.SENT, MessageStatus.DELIVERED])
+            )
+            sender_result = await session.execute(sender_query)
+            sender_rows = sender_result.all()
+            sender_map = {row.id: row.sender_id for row in sender_rows}
+            
+            if not sender_map:
+                return {}
+            
+            # Обновляем статус
+            update_query = update(MessageOrm).where(
+                MessageOrm.id.in_(sender_map.keys())
+            ).values(status=MessageStatus.READ)
+            await session.execute(update_query)
+            
+            # Обновляем last_read_at
+            update_participant = update(ChatParticipantOrm).where(
+                ChatParticipantOrm.chat_id == chat_id,
+                ChatParticipantOrm.user_id == user_id
+            ).values(last_read_at=datetime.now(timezone.utc))
+            await session.execute(update_participant)
+            
+            await session.commit()
+            
+            # Группируем по отправителям
+            result = {}
+            for msg_id, sender_id in sender_map.items():
+                result.setdefault(sender_id, []).append(msg_id)
+            
+            return result

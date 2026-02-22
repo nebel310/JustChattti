@@ -68,6 +68,12 @@ async def websocket_endpoint(
             elif message_type == "ping":
                 await websocket.send_json({"type": "pong"})
 
+            elif message_type == "ack":
+                await manager.handle_ack(websocket, data)
+
+            elif message_type == "read":
+                await manager.handle_read_receipt(websocket, data)
+
             else:
                 await websocket.send_json({
                     "type": "error",

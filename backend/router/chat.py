@@ -12,8 +12,7 @@ from schemas.chat import (
     ErrorResponse, ValidationErrorResponse
 )
 from utils.security import get_current_user
-
-
+from websocket.chat_manager import manager  # Импортируем менеджер
 
 
 router = APIRouter(
@@ -278,6 +277,9 @@ async def edit_message(
         if not message:
             raise HTTPException(status_code=404, detail="Сообщение не найдено")
         
+        # Уведомляем участников чата об изменении сообщения
+        await manager.notify_message_edited(message)
+        
         return message
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -308,10 +310,12 @@ async def delete_message(
     Удалить можно только свои сообщения и только в течение 24 часов после отправки.
     """
     try:
-        success = await MessageRepository.delete_message(message_id, current_user.id)
+        chat_id = await MessageRepository.delete_message(message_id, current_user.id)
         
-        if not success:
+        if not chat_id:
             raise HTTPException(status_code=404, detail="Сообщение не найдено")
+        
+        await manager.notify_message_deleted(chat_id, message_id)
         
         return {"success": True}
     except ValueError as e:
