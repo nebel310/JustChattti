@@ -22,6 +22,6 @@ class FileOrm(Model):
     filesubtype: Mapped[str] # голосовое (да/нет), аватарка (да/нет)
     uploaded_by_id: Mapped[int] = mapped_column(ForeignKey('users.id'))
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),  # Добавьте timezone=True
+        DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc)
     )

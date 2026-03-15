@@ -10,14 +10,16 @@ class SUserRegister(BaseModel):
     username: str
     password: str
     password_confirm: str
-    
+    user_metadata: dict | None = None  # <-- добавлено
+
     model_config = ConfigDict(
         json_schema_extra={
             "examples": [
                 {
                     "username": "test-user",
                     "password": "securepassword123",
-                    "password_confirm": "securepassword123"
+                    "password_confirm": "securepassword123",
+                    "user_metadata": {"example_key": "example_value1", "damn": "nmad"}
                 }
             ]
         }
@@ -28,7 +30,7 @@ class SUserLogin(BaseModel):
     """Схема для входа в систему."""
     username: str
     password: str
-    
+
     model_config = ConfigDict(
         json_schema_extra={
             "examples": [
@@ -52,6 +54,7 @@ class SUser(BaseModel):
     is_online: bool
     last_seen: datetime
     created_at: datetime
+    user_metadata: dict | None = None
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -66,7 +69,8 @@ class SUser(BaseModel):
                     "birth_date": "1990-01-01",
                     "is_online": True,
                     "last_seen": "2024-01-01T12:00:00Z",
-                    "created_at": "2024-01-01T12:00:00Z"
+                    "created_at": "2024-01-01T12:00:00Z",
+                    "user_metadata": {"theme": "dark"}
                 }
             ]
         }
@@ -84,6 +88,7 @@ class SPublicUser(BaseModel):
     is_online: bool
     last_seen: datetime
     created_at: datetime
+    user_metadata: dict | None = None
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -98,7 +103,8 @@ class SPublicUser(BaseModel):
                     "birth_date": "1990-01-01",
                     "is_online": True,
                     "last_seen": "2024-01-01T12:00:00Z",
-                    "created_at": "2024-01-01T12:00:00Z"
+                    "created_at": "2024-01-01T12:00:00Z",
+                    "user_metadata": {"theme": "dark"}
                 }
             ]
         }
@@ -111,7 +117,7 @@ class SUserStatus(BaseModel):
     username: str
     is_online: bool
     last_seen: datetime
-    
+
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
@@ -133,13 +139,14 @@ class SUserUpdate(BaseModel):
     bio: str | None = Field(None, max_length=250)
     gender: str | None = None
     birth_date: date | None = None
-    
+    user_metadata: dict | None = None
+
     @field_validator('bio')
     def validate_bio_length(cls, v):
         if v is not None and len(v) > 250:
             raise ValueError('Био не может превышать 250 символов')
         return v
-    
+
     model_config = ConfigDict(
         json_schema_extra={
             "examples": [
@@ -147,7 +154,8 @@ class SUserUpdate(BaseModel):
                     "avatar_id": 123,
                     "bio": "Новое био пользователя",
                     "gender": "female",
-                    "birth_date": "1995-05-15"
+                    "birth_date": "1995-05-15",
+                    "user_metadata": {"theme": "light"}
                 }
             ]
         }

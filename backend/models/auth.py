@@ -2,7 +2,7 @@ from datetime import date
 from datetime import datetime
 from datetime import timezone
 
-from sqlalchemy import Date, ForeignKey, String, DateTime
+from sqlalchemy import Date, ForeignKey, String, DateTime, JSON
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
 
@@ -31,6 +31,10 @@ class UserOrm(Model):
         DateTime(timezone=True), 
         default=lambda: datetime.now(timezone.utc)
     )
+    
+    # В это поле в каком то формате будет вставать
+    # какая то дополнительная информация о пользователе в формате: ключ-значение
+    user_metadata: Mapped[dict | None] = mapped_column(JSON, nullable=True) 
 
 
 class RefreshTokenOrm(Model):

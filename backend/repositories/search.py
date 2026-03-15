@@ -34,7 +34,8 @@ class UserSearchRepository:
                 UserOrm.avatar_id,
                 UserOrm.bio,
                 UserOrm.is_online,
-                UserOrm.last_seen
+                UserOrm.last_seen,
+                UserOrm.user_metadata
             ).where(
                 and_(
                     UserOrm.username.ilike(f"%{username_query}%"),
@@ -56,6 +57,7 @@ class UserSearchRepository:
                     "bio": row.bio,
                     "is_online": row.is_online,
                     "last_seen": row.last_seen,
+                    "user_metadata": row.user_metadata,
                     "avatar_url": await cls._get_user_avatar_url(row.avatar_id)
                 }
                 users.append(user_data)
@@ -79,7 +81,8 @@ class UserSearchRepository:
                 UserOrm.avatar_id,
                 UserOrm.bio,
                 UserOrm.is_online,
-                UserOrm.last_seen
+                UserOrm.last_seen,
+                UserOrm.user_metadata
             ).where(
                 and_(
                     UserOrm.username == username_query,
@@ -101,6 +104,7 @@ class UserSearchRepository:
                     "bio": row.bio,
                     "is_online": row.is_online,
                     "last_seen": row.last_seen,
+                    "user_metadata": row.user_metadata,
                     "avatar_url": await cls._get_user_avatar_url(row.avatar_id)
                 }
                 users.append(user_data)
@@ -260,7 +264,8 @@ class MessageSearchRepository:
         for message in messages:
             # Получаем информацию об отправителе
             sender_query = select(
-                UserOrm.username, UserOrm.avatar_id
+                UserOrm.username, UserOrm.avatar_id,
+                UserOrm.user_metadata
             ).where(UserOrm.id == message.sender_id)
             
             sender_result = await session.execute(sender_query)
@@ -268,10 +273,12 @@ class MessageSearchRepository:
             
             sender_username = None
             sender_avatar_url = None
+            sender_metadata = None
             
             if sender_row:
                 sender_username = sender_row.username
                 sender_avatar_url = await cls._get_user_avatar_url(sender_row.avatar_id)
+                sender_metadata = sender_row.user_metadata
             
             # Получаем информацию о файле
             file_url = None
@@ -293,6 +300,7 @@ class MessageSearchRepository:
                 "sender_id": message.sender_id,
                 "sender_username": sender_username,
                 "sender_avatar_url": sender_avatar_url,
+                "sender_metadata": sender_metadata,
                 "message_type": message.message_type,
                 "content": message.content,
                 "file_id": message.file_id,

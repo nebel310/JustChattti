@@ -112,7 +112,6 @@ class MessageOrm(Model):
         default=MessageStatus.SENT
     )
     edited: Mapped[bool] = mapped_column(default=False)
-    # Изменяем название с metadata на message_metadata, так как metadata зарезервировано SQLAlchemy
     message_metadata: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

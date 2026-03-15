@@ -7,7 +7,7 @@ from sqlalchemy.orm import selectinload
 
 from database import new_session
 from models.chat import (
-    ChatOrm, ChatParticipantOrm, MessageOrm, 
+    ChatOrm, ChatParticipantOrm, MessageOrm,
     ChatType, MessageStatus, MessageType,
     CallOrm, CallParticipantOrm
 )
@@ -120,7 +120,8 @@ class ChatRepository:
                 user_info = {}
                 if participant_id:
                     user_query = select(
-                        UserOrm.id, UserOrm.username, UserOrm.avatar_id
+                        UserOrm.id, UserOrm.username, UserOrm.avatar_id,
+                        UserOrm.user_metadata
                     ).where(UserOrm.id == participant_id)
                     user_result = await session.execute(user_query)
                     user_row = user_result.first()
@@ -130,6 +131,7 @@ class ChatRepository:
                             "id": user_row.id,
                             "username": user_row.username,
                             "avatar_id": user_row.avatar_id,
+                            "user_metadata": user_row.user_metadata,
                             "avatar_url": await cls._get_user_avatar_url(user_row.avatar_id)
                         }
                 
@@ -251,7 +253,8 @@ class ChatRepository:
             participants = []
             for participant_row in participants_rows:
                 user_query = select(
-                    UserOrm.id, UserOrm.username, UserOrm.avatar_id
+                    UserOrm.id, UserOrm.username, UserOrm.avatar_id,
+                    UserOrm.user_metadata
                 ).where(UserOrm.id == participant_row.user_id)
                 
                 user_result = await session.execute(user_query)
@@ -262,6 +265,7 @@ class ChatRepository:
                         "user_id": user_row.id,
                         "username": user_row.username,
                         "avatar_id": user_row.avatar_id,
+                        "user_metadata": user_row.user_metadata,
                         "avatar_url": await cls._get_user_avatar_url(user_row.avatar_id),
                         "joined_at": participant_row.joined_at,
                         "last_read_at": participant_row.last_read_at
@@ -396,7 +400,8 @@ class MessageRepository:
         async with new_session() as session:
             # Получаем информацию об отправителе
             sender_query = select(
-                UserOrm.username, UserOrm.avatar_id
+                UserOrm.username, UserOrm.avatar_id,
+                UserOrm.user_metadata
             ).where(UserOrm.id == message.sender_id)
             
             sender_result = await session.execute(sender_query)
@@ -404,10 +409,12 @@ class MessageRepository:
             
             sender_username = None
             sender_avatar_url = None
+            sender_metadata = None
             
             if sender_row:
                 sender_username = sender_row.username
                 sender_avatar_url = await cls._get_user_avatar_url(sender_row.avatar_id)
+                sender_metadata = sender_row.user_metadata
             
             # Получаем информацию о файле
             file_url = None
@@ -428,6 +435,7 @@ class MessageRepository:
                 "sender_id": message.sender_id,
                 "sender_username": sender_username,
                 "sender_avatar_url": sender_avatar_url,
+                "sender_metadata": sender_metadata,
                 "message_type": message.message_type,
                 "content": message.content,
                 "file_id": message.file_id,
