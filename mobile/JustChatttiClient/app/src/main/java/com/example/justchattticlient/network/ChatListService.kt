@@ -5,7 +5,7 @@ import retrofit2.Response
 import retrofit2.http.GET
 import retrofit2.http.Query
 
-interface ChatService {
+interface ChatListService {
     @GET("chats/")
     suspend fun getChats(
         @Query("skip") skip: Int = 0,

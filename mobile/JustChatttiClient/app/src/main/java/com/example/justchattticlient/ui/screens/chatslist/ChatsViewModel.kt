@@ -1,15 +1,14 @@
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import com.example.justchattticlient.data.ChatItemResponse
-import com.example.justchattticlient.network.ChatRepository
+import com.example.justchattticlient.data.ChatListItemResponse
+import com.example.justchattticlient.network.ChatListRepository
 import kotlinx.coroutines.flow.asStateFlow
 
 class ChatsViewModel(
-    private val repository: ChatRepository
+    private val repository: ChatListRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<UiState>(UiState.Loading)
@@ -40,6 +39,6 @@ class ChatsViewModel(
 
 sealed class UiState {
     object Loading : UiState()
-    data class Success(val chats: List<ChatItemResponse>) : UiState()
+    data class Success(val chats: List<ChatListItemResponse>) : UiState()
     data class Error(val message: String) : UiState()
 }

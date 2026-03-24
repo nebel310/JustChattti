@@ -20,12 +20,10 @@ object NetworkClient {
 
     private val authenticatedClient by lazy {
         if (::tokenManager.isInitialized) {
-            // TokenManager инициализирован
             OkHttpClient.Builder()
                 .addInterceptor(AuthInterceptor(tokenManager))
                 .build()
         } else {
-            // Fallback - без авторизации
             publicClient
         }
     }

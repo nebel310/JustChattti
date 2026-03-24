@@ -7,6 +7,5 @@ import kotlinx.serialization.Serializable
 sealed interface Screen {
     @Serializable data object Login : Screen
     @Serializable data object Registration : Screen
-
     @Serializable data object Chats : Screen
 }

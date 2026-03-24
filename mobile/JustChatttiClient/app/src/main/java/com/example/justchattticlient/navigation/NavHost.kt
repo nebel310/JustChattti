@@ -7,8 +7,8 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import com.example.justchattticlient.network.ChatRepository
-import com.example.justchattticlient.network.ChatService
+import com.example.justchattticlient.network.ChatListRepository
+import com.example.justchattticlient.network.ChatListService
 import com.example.justchattticlient.network.NetworkClient
 import com.example.justchattticlient.ui.screens.chatslist.ChatsScreen
 import com.example.justchattticlient.ui.screens.login.LoginScreen
@@ -30,8 +30,8 @@ fun AppNavHost(navController: NavHostController) {
         }
 
         composable<Screen.Chats> {
-            val chatService = NetworkClient.apiRetrofit.create(ChatService::class.java)
-            val repository = ChatRepository(chatService)
+            val chatListService = NetworkClient.apiRetrofit.create(ChatListService::class.java)
+            val repository = ChatListRepository(chatListService)
             val viewModel: ChatsViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
                 factory = object : ViewModelProvider.Factory {
                     override fun <T : ViewModel> create(modelClass: Class<T>): T {

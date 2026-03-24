@@ -15,12 +15,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import com.example.justchattticlient.data.ChatItemResponse
+import com.example.justchattticlient.data.ChatListItemResponse
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 
 @Composable
-fun ChatItem(chat: ChatItemResponse) {
+fun ChatItem(chat: ChatListItemResponse) {
     val displayTime = remember(chat.last_message?.created_at, chat.updated_at) {
         val rawDate = chat.last_message?.created_at ?: chat.updated_at
         try {

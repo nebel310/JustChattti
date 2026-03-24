@@ -1,7 +1,7 @@
 package com.example.justchattticlient.data
 
 
-data class ChatItemResponse(
+data class ChatListItemResponse(
     val id: Int,
     val name: String,
     val chat_type: String,
@@ -11,10 +11,10 @@ data class ChatItemResponse(
     val created_at: String,
     val updated_at: String,
     val unread_count: Int,
-    val last_message: LastMessage?
+    val last_message: ChatListLastMessage?
 )
 
-data class LastMessage(
+data class ChatListLastMessage(
     val content: String,
     val created_at: String,
     val id: Int,
@@ -24,6 +24,6 @@ data class LastMessage(
 
 sealed class ChatsResult {
     object Loading : ChatsResult()
-    data class Success(val chats: List<ChatItemResponse>) : ChatsResult()
+    data class Success(val chats: List<ChatListItemResponse>) : ChatsResult()
     data class Error(val message: String) : ChatsResult()
 }
