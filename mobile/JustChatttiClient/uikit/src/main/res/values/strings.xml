@@ -1,0 +1,35 @@
+<resources>
+    <string name="app_name" translatable="false">JustChattti Client</string>
+
+    <string name="login_title">Вход в аккаунт</string>
+    <string name="register_title">Создать аккаунт</string>
+    <string name="username_hint">Имя пользователя</string>
+    <string name="password_hint">Пароль</string>
+    <string name="password_repeat_hint">Повторите пароль</string>
+    <string name="forgot_password">Забыли пароль?</string>
+    <string name="login_button">Вход</string>
+    <string name="register_button">Регистрация</string>
+    <string name="no_account_prompt">Первый раз у нас?</string>
+    <string name="has_account_prompt">Уже есть аккаунт?</string>
+    <string name="search_hint">Поиск</string>
+    <string name="search_users">Поиск пользователей</string>
+    <string name="search_messages">Поиск сообщений</string>
+    <string name="tab_chats">Чаты</string>
+    <string name="tab_settings">Настройки</string>
+    <string name="tab_profile">Профиль</string>
+    <string name="status_online">онлайн</string>
+    <string name="action_write">Написать</string>
+    <string name="action_mute">Мут</string>
+    <string name="action_call">Звонок</string>
+    <string name="action_video">Видео</string>
+    <string name="about_me">О себе</string>
+    <string name="chat_input_hint">Писать</string>
+    <string name="settings_theme_choice">Выбор темы</string>
+    <string name="theme_light">Светлая</string>
+    <string name="theme_dark">Тёмная</string>
+    <string name="custom_theme_config">Настройка кастомной темы</string>
+    <string name="color_text_main">Цвет текста - основной</string>
+    <string name="color_text_extra">Цвет текста - дополнительный</string>
+    <string name="color_bg">Цвет заднего фона</string>
+    <string name="color_elements">Цвет элементов - основной</string>
+</resources>

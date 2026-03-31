@@ -1,4 +1,6 @@
 pluginManagement {
+    includeBuild("build-logic")
+
     repositories {
         google {
             content {
@@ -20,5 +22,26 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "JustChattti Client"
+
 include(":app")
- 
+
+include(":core:common")
+include(":core:navigation")
+include(":core:storage")
+
+include(":domain")
+
+include(":data")
+
+include(":feature:common")
+
+include(":feature:register:api")
+include(":feature:register:impl")
+
+include(":feature:login:api")
+include(":feature:login:impl")
+
+include(":feature:chats:api")
+include(":feature:chats:impl")
+
+include(":uikit")
