@@ -38,6 +38,8 @@ class UserRepository:
     async def register_user(cls, user_data: SUserRegister) -> int:
         """Регистрирует нового пользователя."""
         async with new_session() as session:
+            if user_data.password != user_data.password_confirm:
+                raise ValueError("Пароль и подтверждение пароля не совпадают")
             query = select(UserOrm).where(UserOrm.username == user_data.username)
             result = await session.execute(query)
 
