@@ -1,6 +1,6 @@
-package feature.register.impl.state
+package feature.login.impl.state
 
-data class RegisterState(
+data class LoginState(
     val isLoading: Boolean = false,
 
     val isError: Boolean = false,
@@ -10,9 +10,5 @@ data class RegisterState(
     val hasLoginError: Boolean = false,
 
     val password: String = "",
-    val passwordConfirm: String = "",
     val hasPasswordError: Boolean = false,
-) {
-    val hasErrors: Boolean
-        get() = hasLoginError && hasPasswordError
-}
+)

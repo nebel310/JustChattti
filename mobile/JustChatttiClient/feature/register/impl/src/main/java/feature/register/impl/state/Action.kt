@@ -5,5 +5,5 @@ sealed interface RegisterAction {
     data class ChangePassword(val value: String): RegisterAction
     data class ChangePasswordConfirm(val value: String): RegisterAction
     data object OnRegister: RegisterAction
-    data object HasAccount: RegisterAction
+    data object OnHasAccount: RegisterAction
 }

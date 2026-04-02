@@ -1,4 +1,4 @@
-package feature.register.impl.components
+package feature.login.impl.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -10,8 +10,6 @@ import androidx.compose.foundation.text.input.KeyboardActionHandler
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -29,14 +27,12 @@ import com.example.justchattticlient.uikit.R
 import uikit.components.PasswordInput
 import uikit.components.TextInput
 import uikit.space16
-import uikit.space8
 import uikit.theme.JustChatttiClientTheme
 
 @Composable
-internal fun RegisterInputs(
+internal fun LoginInputs(
     emailState: TextFieldState,
     passwordState: TextFieldState,
-    passwordStateConfirm: TextFieldState,
     modifier: Modifier = Modifier,
     heightInput: Dp = 56.dp,
     isError: Boolean = false
@@ -102,29 +98,6 @@ internal fun RegisterInputs(
                 },
                 isError = isError
             )
-
-            PasswordInput(
-                state = passwordStateConfirm,
-                placeholder = stringResource(R.string.password_repeat_hint),
-                modifier = Modifier.height(heightInput),
-                contentPadding = PaddingValues(
-                    vertical = 8.dp,
-                    horizontal = 16.dp
-                ),
-                keyboardOptions = KeyboardOptions(
-                    imeAction = ImeAction.Done
-                ),
-                onKeyboardAction = KeyboardActionHandler {
-                    focusManager.clearFocus()
-                },
-                leadingIcon = {
-                    Icon(
-                        painter = painterResource(R.drawable.lock_icon),
-                        contentDescription = null
-                    )
-                },
-                isError = isError
-            )
         }
     }
 }
@@ -133,10 +106,9 @@ internal fun RegisterInputs(
 @Composable
 private fun Preview() {
     JustChatttiClientTheme() {
-        RegisterInputs(
+        LoginInputs(
             emailState = rememberTextFieldState(),
             passwordState = rememberTextFieldState(),
-            passwordStateConfirm = rememberTextFieldState(),
             isError = true
         )
     }

@@ -1,4 +1,4 @@
-package feature.register.impl.components
+package feature.login.impl.components
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -28,49 +28,40 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.justchattticlient.uikit.R
-import feature.register.impl.state.RegisterAction
-import feature.register.impl.state.RegisterState
+import feature.login.impl.state.LoginAction
+import feature.login.impl.state.LoginState
 import kotlinx.coroutines.flow.collectLatest
 import uikit.components.ButtonWithLoader
 import uikit.space16
+import uikit.space20
 import uikit.space24
 import uikit.space28
 import uikit.space32
 import uikit.theme.JustChatttiClientTheme
 
 @Composable
-internal fun RegisterContent(
-    state: RegisterState,
-    action: (RegisterAction) -> Unit
+internal fun LoginContent(
+    state: LoginState,
+    action: (LoginAction) -> Unit
 ) {
     val textEmailState = rememberTextFieldState(state.login)
     val textPassState = rememberTextFieldState(state.password)
-    val textPassConfirmState = rememberTextFieldState(state.passwordConfirm)
     val isButtonEnabled = remember {
         textEmailState.text.isNotBlank() &&
-                textPassState.text.isNotBlank() &&
-                textPassConfirmState.text.isNotBlank() &&
-                textPassState.text != textPassConfirmState.text
+                textPassState.text.isNotBlank()
     }
 
     LaunchedEffect(Unit) {
         snapshotFlow { textEmailState.text }
             .collectLatest {
-                action(RegisterAction.ChangeLogin(it.toString()))
+                action(LoginAction.ChangeLogin(it.toString()))
             }
     }
 
     LaunchedEffect(Unit) {
         snapshotFlow { textPassState.text }
             .collectLatest {
-                action(RegisterAction.ChangePassword(it.toString()))
-            }
-    }
-
-    LaunchedEffect(Unit) {
-        snapshotFlow { textPassConfirmState.text }
-            .collectLatest {
-                action(RegisterAction.ChangePasswordConfirm(it.toString()))
+                action(LoginAction.ChangePassword(it.toString()))
             }
     }
 
@@ -89,7 +80,7 @@ internal fun RegisterContent(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(modifier = Modifier.fillMaxWidth(),
-                text = stringResource(R.string.register_title),
+                text = stringResource(R.string.login_title),
                 style = MaterialTheme.typography.headlineLarge,
                 textAlign = TextAlign.Left
             )
@@ -106,20 +97,29 @@ internal fun RegisterContent(
                 )
             }
 
-            RegisterInputs(
+            LoginInputs(
                 emailState = textEmailState,
                 passwordState = textPassState,
-                passwordStateConfirm = textPassConfirmState,
-                isError = state.hasErrors
+                isError = state.hasLoginError && state.hasPasswordError
             )
 
-            Spacer(Modifier.height(space24))
+            Spacer(Modifier.height(space20))
+
+            Text(
+                modifier = Modifier.fillMaxWidth(),
+                text = stringResource(R.string.forgot_password),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onBackground,
+                textAlign = TextAlign.Right
+            )
+
+            Spacer(Modifier.height(space20))
 
             ButtonWithLoader(
                 modifier = Modifier
                     .fillMaxWidth(),
-                text = stringResource(R.string.register_button),
-                onClick = { action(RegisterAction.OnRegister) },
+                text = stringResource(R.string.login_button),
+                onClick = { action(LoginAction.OnLogin) },
                 height = 56.dp,
                 isLoading = state.isLoading,
                 isEnabled = isButtonEnabled
@@ -129,7 +129,7 @@ internal fun RegisterContent(
 
             Row() {
                 Text(
-                    text = stringResource(R.string.has_account_prompt) + " ",
+                    text = stringResource(R.string.no_account_prompt) + " ",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onBackground
                 )
@@ -137,9 +137,9 @@ internal fun RegisterContent(
                 Text(
                     modifier = Modifier
                         .clickable {
-                            action(RegisterAction.OnHasAccount)
+                            action(LoginAction.OnNoAccount)
                         },
-                    text = stringResource(R.string.login_button),
+                    text = stringResource(R.string.register_button),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onPrimary
                 )
@@ -148,14 +148,12 @@ internal fun RegisterContent(
     }
 }
 
-@Preview(showBackground = true)
+@Preview
 @Composable
 private fun Preview() {
     JustChatttiClientTheme() {
-        RegisterContent(
-            state = RegisterState(
-                errorMessage = "Server error"
-            ),
+        LoginContent(
+            state = LoginState(),
             action = {}
         )
     }

@@ -2,9 +2,6 @@ package feature.register.impl
 
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import core.common.exceptions.NetworkException
-import core.common.exceptions.isBadRequest
-import core.common.exceptions.isServerError
 import feature.common.compose.ObserveAsEvent
 import feature.register.impl.components.RegisterContent
 import feature.register.impl.state.SideEffect
@@ -24,7 +21,7 @@ fun RegisterScreen(
     ObserveAsEvent(viewModel.sideEffect) { sideEffect ->
         when (sideEffect) {
             SideEffect.SuccessRegister -> navigateToLogin()
-            SideEffect.HasAccount -> navigateToLogin()
+            SideEffect.NavigateToLogin -> navigateToLogin()
         }
     }
 }

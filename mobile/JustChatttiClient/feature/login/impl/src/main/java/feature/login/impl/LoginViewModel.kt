@@ -1,13 +1,14 @@
-package feature.register.impl
+package feature.login.impl
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import core.common.exceptions.NetworkException
 import data.models.UserCreate
-import domain.auth.RegisterUseCase
-import feature.register.impl.state.RegisterAction
-import feature.register.impl.state.RegisterState
-import feature.register.impl.state.SideEffect
+import data.models.UserCredentials
+import domain.auth.LoginUseCase
+import feature.login.impl.state.LoginAction
+import feature.login.impl.state.LoginState
+import feature.login.impl.state.SideEffect
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,25 +16,23 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-class RegisterViewModel(
-    private val registerUseCase: RegisterUseCase
+class LoginViewModel(
+    private val loginUseCase: LoginUseCase
 ): ViewModel() {
     private val _sideEffect = Channel<SideEffect>()
     val sideEffect = _sideEffect.receiveAsFlow()
 
-    private val _state = MutableStateFlow(RegisterState())
+    private val _state = MutableStateFlow(LoginState())
     val state = _state.asStateFlow()
 
-    fun processAction(action: RegisterAction) {
+    fun processAction(action: LoginAction) {
         viewModelScope.launch {
             when (action) {
-                RegisterAction.OnRegister -> register()
-                is RegisterAction.ChangeLogin -> changeLogin(action.value)
-                is RegisterAction.ChangePassword -> changePassword(action.value)
-                is RegisterAction.ChangePasswordConfirm -> changePasswordConfirm(action.value)
-                RegisterAction.OnHasAccount -> {
-                    _sideEffect.send(SideEffect.NavigateToLogin)
-                }
+                is LoginAction.ChangeLogin -> changeLogin(action.value)
+                is LoginAction.ChangePassword -> changePassword(action.value)
+                LoginAction.OnLogin -> login()
+                LoginAction.OnNoAccount -> {}
+                LoginAction.OnForgotPassword -> {}
             }
         }
     }
@@ -58,33 +57,21 @@ class RegisterViewModel(
         }
     }
 
-    private fun changePasswordConfirm(value: String) {
-        _state.update {
-            it.copy(
-                passwordConfirm = value,
-                hasLoginError = false,
-                hasPasswordError = false,
-            )
-        }
-    }
-
-    private suspend fun register() {
+    private suspend fun login() {
         _state.update { it.copy(isLoading = true) }
 
         val result = runCatching {
-            registerUseCase(
-                UserCreate(
-                    password = state.value.password,
-                    passwordConfirm = state.value.passwordConfirm,
-                    username = state.value.login,
-                    userMetadata = null
+            loginUseCase(
+                UserCredentials(
+                    login = state.value.login,
+                    password = state.value.password
                 )
             )
         }
 
         with(result) {
             onSuccess {
-                _sideEffect.send(SideEffect.SuccessRegister)
+                _sideEffect.send(SideEffect.SuccessLogin)
             }
 
             onFailure { e ->
