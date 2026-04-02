@@ -5,7 +5,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.navigation.compose.rememberNavController
-import com.wemaka.uikit.theme.JustChatttiClientTheme
+import feature.register.impl.RegisterScreen
+import uikit.theme.JustChatttiClientTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -14,6 +15,11 @@ class MainActivity : ComponentActivity() {
         setContent {
             JustChatttiClientTheme {
                 val navController = rememberNavController()
+                RegisterScreen(
+                    navigateToLogin = {
+
+                    }
+                )
             }
         }
     }

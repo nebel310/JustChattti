@@ -1,5 +1,5 @@
 [versions]
-java = "21"
+java = "17"
 minSdk = "29"
 targetSdk = "36"
 compileSdk = "36"
@@ -11,6 +11,7 @@ kotlin = "2.3.20"
 coreKtx = "1.18.0"
 lifecycleRuntimeKtx = "2.10.0"
 kotlinxSerialization = "1.10.0"
+kotlinxDatetime = "0.7.1"
 ksp = "2.3.6"
 # UI / Compose
 composeBom = "2026.03.00"
@@ -24,6 +25,7 @@ uiTextGoogleFonts = "1.10.6"
 koin = "4.2.0"
 # Storages
 room = "2.8.4"
+datastorePreferences = "1.2.1"
 # Retrofit
 retrofit = "3.0.0"
 # Gson
@@ -39,6 +41,7 @@ foundationLayout = "1.10.6"
 
 
 [libraries]
+kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinxDatetime" }
 kotlinx-serialization = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 # Core
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -67,6 +70,7 @@ gradleplugin-kotlin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", ve
 room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
 room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 room-testing = { group = "androidx.room", name = "room-testing", version.ref = "room" }
+androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastorePreferences" }
 # Retrofit
 retrofit = { module = "com.squareup.retrofit2:retrofit", version.ref = "retrofit" }
 # DI

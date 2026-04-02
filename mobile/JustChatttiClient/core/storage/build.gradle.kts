@@ -5,4 +5,5 @@ plugins {
 androidConfig {}
 
 dependencies {
+    implementation(libs.androidx.datastore.preferences)
 }
