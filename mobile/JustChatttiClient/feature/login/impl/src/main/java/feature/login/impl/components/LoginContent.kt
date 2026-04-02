@@ -34,8 +34,6 @@ import kotlinx.coroutines.flow.collectLatest
 import uikit.components.ButtonWithLoader
 import uikit.space16
 import uikit.space20
-import uikit.space24
-import uikit.space28
 import uikit.space32
 import uikit.theme.JustChatttiClientTheme
 
@@ -44,15 +42,13 @@ internal fun LoginContent(
     state: LoginState,
     action: (LoginAction) -> Unit
 ) {
-    val textEmailState = rememberTextFieldState(state.login)
+    val textLoginState = rememberTextFieldState(state.login)
     val textPassState = rememberTextFieldState(state.password)
-    val isButtonEnabled = remember {
-        textEmailState.text.isNotBlank() &&
-                textPassState.text.isNotBlank()
-    }
+    val isButtonEnabled = textLoginState.text.isNotBlank() &&
+            textPassState.text.isNotBlank()
 
     LaunchedEffect(Unit) {
-        snapshotFlow { textEmailState.text }
+        snapshotFlow { textLoginState.text }
             .collectLatest {
                 action(LoginAction.ChangeLogin(it.toString()))
             }
@@ -98,7 +94,7 @@ internal fun LoginContent(
             }
 
             LoginInputs(
-                emailState = textEmailState,
+                emailState = textLoginState,
                 passwordState = textPassState,
                 isError = state.hasLoginError && state.hasPasswordError
             )
@@ -106,7 +102,12 @@ internal fun LoginContent(
             Spacer(Modifier.height(space20))
 
             Text(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        action(LoginAction.OnForgotPassword)
+                    }
+                ,
                 text = stringResource(R.string.forgot_password),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onBackground,

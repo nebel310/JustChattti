@@ -34,7 +34,6 @@ import kotlinx.coroutines.flow.collectLatest
 import uikit.components.ButtonWithLoader
 import uikit.space16
 import uikit.space24
-import uikit.space28
 import uikit.space32
 import uikit.theme.JustChatttiClientTheme
 
@@ -43,18 +42,16 @@ internal fun RegisterContent(
     state: RegisterState,
     action: (RegisterAction) -> Unit
 ) {
-    val textEmailState = rememberTextFieldState(state.login)
+    val textLoginState = rememberTextFieldState(state.login)
     val textPassState = rememberTextFieldState(state.password)
     val textPassConfirmState = rememberTextFieldState(state.passwordConfirm)
-    val isButtonEnabled = remember {
-        textEmailState.text.isNotBlank() &&
-                textPassState.text.isNotBlank() &&
-                textPassConfirmState.text.isNotBlank() &&
-                textPassState.text != textPassConfirmState.text
-    }
+    val isButtonEnabled = textLoginState.text.isNotBlank() &&
+            textPassState.text.isNotBlank() &&
+            textPassConfirmState.text.isNotBlank() &&
+            textPassState.text == textPassConfirmState.text
 
     LaunchedEffect(Unit) {
-        snapshotFlow { textEmailState.text }
+        snapshotFlow { textLoginState.text }
             .collectLatest {
                 action(RegisterAction.ChangeLogin(it.toString()))
             }
@@ -107,7 +104,7 @@ internal fun RegisterContent(
             }
 
             RegisterInputs(
-                emailState = textEmailState,
+                emailState = textLoginState,
                 passwordState = textPassState,
                 passwordStateConfirm = textPassConfirmState,
                 isError = state.hasErrors

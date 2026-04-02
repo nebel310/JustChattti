@@ -31,7 +31,9 @@ class LoginViewModel(
                 is LoginAction.ChangeLogin -> changeLogin(action.value)
                 is LoginAction.ChangePassword -> changePassword(action.value)
                 LoginAction.OnLogin -> login()
-                LoginAction.OnNoAccount -> {}
+                LoginAction.OnNoAccount -> {
+                    _sideEffect.send(SideEffect.NavigateToRegister)
+                }
                 LoginAction.OnForgotPassword -> {}
             }
         }

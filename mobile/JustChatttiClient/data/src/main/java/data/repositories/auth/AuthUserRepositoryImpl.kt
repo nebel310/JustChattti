@@ -26,9 +26,6 @@ internal class AuthUserRepositoryImpl(
     }
 
     override suspend fun registerUser(user: UserCreate): TokenData {
-        println("-----------------")
-        println(user.password)
-        println(user.passwordConfirm)
         return authApi.register(
             RegisterRequest(
                 password = user.password,
