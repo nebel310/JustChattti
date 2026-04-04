@@ -12,6 +12,7 @@ from router.auth import router as auth_router
 from router.files import router as files_router
 from router.chat import router as chat_router
 from router.search import router as search_router
+from router.admin import router as admin_router
 from websocket.router import router as websocket_router
 from utils.minio_client import minio
 
@@ -67,6 +68,8 @@ def custom_openapi():
         ("/auth/user-update", "patch"): [{"Bearer": []}],
         ("/auth/users/{user_id}", "get"): [{"Bearer": []}],
         ("/auth/users/{user_id}/status", "get"): [{"Bearer": []}],
+        ("/auth/role", "patch"): [{"Bearer": []}],
+        ("/auth/user_storage_limit", "patch"): [{"Bearer": []}],
         ("/files/upload", "post"): [{"Bearer": []}],
         ("/files/{file_id}", "get"): [{"Bearer": []}],
         ("/files/{file_id}/download", "get"): [{"Bearer": []}],
@@ -99,7 +102,7 @@ def custom_openapi():
 
 
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(lifespan=lifespan, debug=True)
 app.openapi = custom_openapi
 
 
@@ -119,12 +122,14 @@ app.include_router(files_router)
 app.include_router(chat_router)
 app.include_router(search_router)
 app.include_router(websocket_router)
+app.include_router(admin_router)
 
 
 
 if __name__ == "__main__":
     uvicorn.run(
         "main:app",
+        log_level="debug",
         reload=True,
         port=1000,
         host="0.0.0.0"

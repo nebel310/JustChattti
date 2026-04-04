@@ -189,16 +189,6 @@ class LogoutResponse(BaseModel):
     success: bool = Field(..., example=True)
 
 
-class ErrorResponse(BaseModel):
-    """Схема ответа для ошибок."""
-    detail: str = Field(..., example="Сообщение об ошибке")
-
-
-class ValidationErrorResponse(BaseModel):
-    """Схема ответа для ошибок валидации."""
-    detail: str = Field(..., example="Пользователь с таким username уже существует")
-
-
 class SRefreshToken(BaseModel):
     """Схема получения refresh токена"""
     refresh: str = Field(..., example="eyJhbG...")

@@ -6,8 +6,9 @@ from fastapi.responses import StreamingResponse
 
 from repositories.files import FileRepository
 from schemas.files import (
-    SUploadFile, SUploadFileResponse, ErrorResponse, SFileResponse
+    SUploadFile, SUploadFileResponse, SFileResponse
 )
+from schemas.base import ErrorResponse
 from models.auth import UserOrm
 from utils.security import get_current_user
 from utils.minio_client import minio

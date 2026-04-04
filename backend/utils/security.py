@@ -18,6 +18,7 @@ from sqlalchemy import select
 from database import new_session
 from models.auth import BlacklistedTokenOrm
 from models.auth import UserOrm
+from models.auth import UserRole
 from repositories.auth import UserRepository
 
 
@@ -124,3 +125,9 @@ async def get_current_user_from_token(token: str) -> UserOrm:
 def get_password_hash(password: str) -> str:
     """Создает хэш пароля."""
     return pwd_context.hash(password)
+
+
+async def get_current_admin_user(current_user: UserOrm = Depends(get_current_user)) -> UserOrm:
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(403, "Недостаточно прав")
+    return current_user

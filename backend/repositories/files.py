@@ -2,10 +2,12 @@ import os
 import uuid
 from typing import Dict, Any
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
+from sqlalchemy.exc import SQLAlchemyError
 
 from database import new_session
 from models.files import FileOrm
+from models.auth import UserOrm
 from schemas.files import SUploadFile
 from utils.minio_client import minio
 
@@ -31,8 +33,28 @@ class FileRepository:
     
     @classmethod
     async def upload_file(cls, file, file_data: SUploadFile, user_id: int) -> Dict[str, Any]:
-        """Метод для загрузки файл на сервер"""
-        async with new_session() as session:            
+        """Метод для загрузки файла на сервер с проверкой лимита хранилища"""
+        async with new_session() as session:
+            # Получаем пользователя и проверяем лимит
+            user = await session.get(UserOrm, user_id)
+            if not user:
+                raise ValueError("Пользователь не найден")
+            
+            # Получаем размер файла
+            file.file.seek(0, 2)
+            file_size = file.file.tell()
+            file.file.seek(0)
+            
+            # Проверяем, не превысит ли новый файл лимит
+            if user.storage_used_bytes + file_size > user.storage_limit_bytes:
+                raise ValueError(
+                    f"Недостаточно места в хранилище. "
+                    f"Использовано: {user.storage_used_bytes}, "
+                    f"лимит: {user.storage_limit_bytes}, "
+                    f"размер файла: {file_size}"
+                )
+            
+            # Загружаем файл в MinIO
             filename_in_minio = await minio.upload(file)
             
             filetype = await cls._determine_filetype(file)
@@ -43,12 +65,25 @@ class FileRepository:
                 original_name=file.filename,
                 filetype=filetype,
                 filesubtype=filesubtype,
+                size=file_size,
                 uploaded_by_id=user_id
             )
             
             session.add(file_orm)
-            await session.flush()
-            await session.commit()
+            
+            # Обновляем used_bytes пользователя
+            user.storage_used_bytes += file_size
+            
+            try:
+                await session.flush()
+                await session.commit()
+            except SQLAlchemyError as e:
+                # Если произошла ошибка БД, пробуем удалить файл из MinIO
+                try:
+                    await minio.delete(filename_in_minio)
+                except Exception:
+                    pass
+                raise ValueError(f"Ошибка базы данных: {str(e)}") from e
             
             return {
                 "id": file_orm.id,
@@ -56,6 +91,7 @@ class FileRepository:
                 "original_name": file_orm.original_name,
                 "filetype": file_orm.filetype,
                 "filesubtype": file_orm.filesubtype,
+                "size": file_orm.size,          # <-- добавлено
                 "uploaded_by_id": file_orm.uploaded_by_id,
                 "created_at": file_orm.created_at
             }
@@ -86,6 +122,7 @@ class FileRepository:
                 "original_name": file.original_name,
                 "filetype": file.filetype,
                 "filesubtype": file.filesubtype,
+                "size": file.size,              # <-- добавлено
                 "uploaded_by_id": file.uploaded_by_id,
                 "created_at": file.created_at,
                 "url": file_url
@@ -93,7 +130,7 @@ class FileRepository:
     
     @classmethod
     async def delete_file(cls, file_id: int, user_id: int) -> bool:
-        """Удаление файла по ID."""
+        """Удаление файла по ID с уменьшением использованного места пользователя"""
         async with new_session() as session:
             # Получаем файл
             query = select(FileOrm).where(
@@ -106,15 +143,21 @@ class FileRepository:
             if not file:
                 return False
             
+            # Получаем пользователя для обновления used_bytes
+            user = await session.get(UserOrm, user_id)
+            if not user:
+                return False
+            
+            file_size = file.size
+            
             # Проверяем, используется ли файл как аватарка
-            from models.auth import UserOrm
             user_query = select(UserOrm).where(UserOrm.avatar_id == file_id)
             user_result = await session.execute(user_query)
             users_with_avatar = user_result.scalars().all()
             
             # Обнуляем аватарку у всех пользователей, если файл используется как аватарка
-            for user in users_with_avatar:
-                user.avatar_id = None
+            for u in users_with_avatar:
+                u.avatar_id = None
             
             # Удаляем файл из MinIO
             try:
@@ -124,6 +167,12 @@ class FileRepository:
             
             # Удаляем запись из базы
             await session.delete(file)
+            
+            # Уменьшаем used_bytes пользователя
+            user.storage_used_bytes -= file_size
+            if user.storage_used_bytes < 0:
+                user.storage_used_bytes = 0
+            
             await session.commit()
             
             return True

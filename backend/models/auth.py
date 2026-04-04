@@ -2,13 +2,18 @@ from datetime import date
 from datetime import datetime
 from datetime import timezone
 
-from sqlalchemy import Date, ForeignKey, String, DateTime, JSON
+from sqlalchemy import Date, ForeignKey, String, DateTime, JSON, Enum, CheckConstraint
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
 
 from database import Model
 
 
+
+
+class UserRole(str, Enum):
+    USER = "user"
+    ADMIN = "admin"
 
 
 class UserOrm(Model):
@@ -21,6 +26,9 @@ class UserOrm(Model):
     avatar_id: Mapped[int | None] = mapped_column(ForeignKey('files.id', ondelete='SET NULL'), nullable=True)
     bio: Mapped[str | None] = mapped_column(String(250), nullable=True)
     gender: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    role: Mapped[UserRole] = mapped_column(Enum(UserRole), default=UserRole.USER)
+    storage_used_bytes: Mapped[int] = mapped_column(default=0)
+    storage_limit_bytes: Mapped[int] = mapped_column(default=1073741824) # В байтах, дефолтно 1 Гигабайт
     birth_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     is_online: Mapped[bool] = mapped_column(default=False)
     last_seen: Mapped[datetime] = mapped_column(
@@ -31,10 +39,13 @@ class UserOrm(Model):
         DateTime(timezone=True), 
         default=lambda: datetime.now(timezone.utc)
     )
-    
     # В это поле в каком то формате будет вставать
     # какая то дополнительная информация о пользователе в формате: ключ-значение
-    user_metadata: Mapped[dict | None] = mapped_column(JSON, nullable=True) 
+    user_metadata: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    
+    __table_args__ = (
+        CheckConstraint('storage_used_bytes <= storage_limit_bytes'),
+    )
 
 
 class RefreshTokenOrm(Model):

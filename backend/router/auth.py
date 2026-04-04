@@ -5,7 +5,6 @@ from fastapi import Path
 
 from models.auth import UserOrm
 from repositories.auth import UserRepository
-from schemas.auth import ErrorResponse
 from schemas.auth import LoginResponse
 from schemas.auth import LogoutResponse
 from schemas.auth import SRefreshToken
@@ -17,7 +16,7 @@ from schemas.auth import SUserStatus
 from schemas.auth import SUserUpdate
 from schemas.auth import SUserLogin
 from schemas.auth import SUserRegister
-from schemas.auth import ValidationErrorResponse
+from schemas.base import ErrorResponse, ValidationErrorResponse
 from utils.security import create_access_token
 from utils.security import get_current_user
 from utils.security import oauth2_scheme
