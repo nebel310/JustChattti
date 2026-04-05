@@ -8,7 +8,8 @@ from fastapi.encoders import jsonable_encoder
 import asyncio
 import logging
 
-
+from repositories.chat import ChatRepository
+from utils.fcm_service import send_push_notification
 
 
 logging.basicConfig(level=logging.INFO)
@@ -225,6 +226,32 @@ class ConnectionManager:
             message_data = MessageCreate(**data)
             message = await MessageRepository.send_message(message_data, user_id)
             logger.info(f"Сообщение сохранено в БД, id: {message['id']}")
+
+            # Отправка push-уведомления, если получатель офлайн
+            try:
+                chat_detail = await ChatRepository.get_chat_detail(message_data.chat_id, user_id)
+                if chat_detail and chat_detail.get("other_participant"):
+                    receiver_id = chat_detail["other_participant"]["user_id"]
+                    # Проверяем, есть ли у получателя активное WebSocket-соединение
+                    if receiver_id not in self.active_connections:
+                        # Формируем тело уведомления
+                        notification_body = message.get("content", "")
+                        if not notification_body:
+                            notification_body = "Новое сообщение"
+                        elif len(notification_body) > 100:
+                            notification_body = notification_body[:100] + "..."
+                        
+                        await send_push_notification(
+                            user_id=receiver_id,
+                            title="Новое сообщение",
+                            body=notification_body,
+                            data_payload={
+                                "chat_id": str(message_data.chat_id),
+                                "message_id": str(message["id"])
+                            }
+                        )
+            except Exception as e:
+                logger.error(f"Ошибка при отправке push-уведомления: {e}")
 
             chat_message = {
                 "type": "message",
