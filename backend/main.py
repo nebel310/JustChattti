@@ -17,6 +17,7 @@ from router.fcm import router as fcm_router  # <-- добавлено
 from websocket.router import router as websocket_router
 from utils.minio_client import minio
 from utils.seed import create_admin
+from utils.fcm_config import init_firebase
 
 
 
@@ -27,6 +28,10 @@ async def lifespan(app: FastAPI):
     await create_tables()
     print('База готова к работе')
     await create_admin()
+    print("Создан тестовый админ")
+    init_firebase()
+    print("FCM готов к работе")
+    
     
     yield
     

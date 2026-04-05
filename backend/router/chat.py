@@ -235,6 +235,31 @@ async def send_message(
             current_user.id
         )
         
+        # Отправка push-уведомления, если получатель офлайн
+        try:
+            chat_detail = await ChatRepository.get_chat_detail(chat_id, current_user.id)
+            if chat_detail and chat_detail.get("other_participant"):
+                receiver_id = chat_detail["other_participant"]["user_id"]
+                from websocket.chat_manager import manager
+                if receiver_id not in manager.active_connections:
+                    notification_body = message.get("content", "")
+                    if not notification_body:
+                        notification_body = "Новое сообщение"
+                    elif len(notification_body) > 100:
+                        notification_body = notification_body[:100] + "..."
+                    
+                    await send_push_notification(
+                        user_id=receiver_id,
+                        title="Новое сообщение",
+                        body=notification_body,
+                        data_payload={
+                            "chat_id": str(chat_id),
+                            "message_id": str(message["id"])
+                        }
+                    )
+        except Exception as e:
+            print(f"Ошибка при отправке push-уведомления (REST): {e}")
+        
         return message
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

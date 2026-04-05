@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from typing import Dict, Any, Optional
 
@@ -5,10 +6,7 @@ from repositories.fcm import FCMTokenRepository
 from utils.fcm_config import is_firebase_ready
 
 
-
-
 logger = logging.getLogger(__name__)
-
 
 
 async def send_push_notification(
@@ -46,13 +44,11 @@ async def send_push_notification(
                 data=data_payload,
                 token=token,
             )
-            response = await messaging.send_async(message)
+
+            response = await asyncio.to_thread(messaging.send, message)
             logger.info(f"Push отправлен на токен {token[:10]}..., response: {response}")
         except messaging.UnregisteredError:
             logger.warning(f"Токен {token[:10]}... не зарегистрирован, удаляем")
-            await FCMTokenRepository.remove_invalid_token(token)
-        except messaging.NotFoundError:
-            logger.warning(f"Токен {token[:10]}... не найден, удаляем")
             await FCMTokenRepository.remove_invalid_token(token)
         except Exception as e:
             logger.error(f"Ошибка отправки push на токен {token[:10]}...: {e}")
