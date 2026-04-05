@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -43,6 +44,11 @@ class SUserLogin(BaseModel):
     )
 
 
+class UserRole(str, Enum):
+    USER = "user"
+    ADMIN = "admin"
+
+
 class SUser(BaseModel):
     """Схема для отображения информации о пользователе."""
     id: int
@@ -55,6 +61,9 @@ class SUser(BaseModel):
     last_seen: datetime
     created_at: datetime
     user_metadata: dict | None = None
+    role: UserRole
+    storage_used_bytes: int = Field(..., example=0)
+    storage_limit_bytes: int = Field(..., example=1073741824)
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -68,6 +77,9 @@ class SUser(BaseModel):
                     "gender": "male",
                     "birth_date": "1990-01-01",
                     "is_online": True,
+                    "role": UserRole.USER,
+                    "storage_used_bytes" : 0,
+                    "storage_limit_bytes" : 1073741824,
                     "last_seen": "2024-01-01T12:00:00Z",
                     "created_at": "2024-01-01T12:00:00Z",
                     "user_metadata": {"theme": "dark"}
@@ -187,16 +199,6 @@ class RefreshResponse(BaseModel):
 class LogoutResponse(BaseModel):
     """Схема ответа для выхода из системы."""
     success: bool = Field(..., example=True)
-
-
-class ErrorResponse(BaseModel):
-    """Схема ответа для ошибок."""
-    detail: str = Field(..., example="Сообщение об ошибке")
-
-
-class ValidationErrorResponse(BaseModel):
-    """Схема ответа для ошибок валидации."""
-    detail: str = Field(..., example="Пользователь с таким username уже существует")
 
 
 class SRefreshToken(BaseModel):

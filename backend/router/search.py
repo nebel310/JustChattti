@@ -6,9 +6,9 @@ from models.auth import UserOrm
 from repositories.search import UserSearchRepository, MessageSearchRepository
 from schemas.search import (
     UserSearchRequest, UserSearchResponse,
-    MessageSearchRequest, MessageSearchResponse,
-    ErrorResponse, ValidationErrorResponse
+    MessageSearchRequest, MessageSearchResponse
 )
+from schemas.base import ErrorResponse, ValidationErrorResponse
 from utils.security import get_current_user
 
 

@@ -8,9 +8,9 @@ from repositories.chat import ChatRepository, MessageRepository
 from schemas.chat import (
     ChatCreate, ChatResponse, ChatDetailResponse,
     MessageCreate, MessageResponse, MessagesResponse,
-    MarkAsReadRequest, CallCreate, CallResponse,
-    ErrorResponse, ValidationErrorResponse
+    MarkAsReadRequest, CallCreate, CallResponse
 )
+from schemas.base import ErrorResponse, ValidationErrorResponse
 from utils.security import get_current_user
 from websocket.chat_manager import manager  # Импортируем менеджер
 

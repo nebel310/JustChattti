@@ -1,13 +1,11 @@
-from fastapi import APIRouter
-from fastapi import Depends
-from fastapi import HTTPException
-from fastapi import UploadFile, File, Path
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Path
 from fastapi.responses import StreamingResponse
 
 from repositories.files import FileRepository
 from schemas.files import (
-    SUploadFile, SUploadFileResponse, ErrorResponse, SFileResponse
+    SUploadFile, SUploadFileResponse, SFileResponse
 )
+from schemas.base import ErrorResponse
 from models.auth import UserOrm
 from utils.security import get_current_user
 from utils.minio_client import minio
@@ -30,8 +28,9 @@ router = APIRouter(
     }
 )
 async def upload_file(
-    file_data: SUploadFile,
     file: UploadFile = File(...),
+    is_avatar: bool = Form(False),
+    is_voice_message: bool = Form(False),
     current_user: UserOrm = Depends(get_current_user)
 ):
     """
@@ -41,6 +40,7 @@ async def upload_file(
     Можно указать тип файла (аватарка, голосовое сообщение).
     """
     try:
+        file_data = SUploadFile(is_avatar=is_avatar, is_voice_message=is_voice_message)
         answer = await FileRepository.upload_file(file, file_data, current_user.id)
         return SUploadFileResponse(
             success=True,
@@ -49,6 +49,7 @@ async def upload_file(
             original_name=answer["original_name"],
             filetype=answer["filetype"],
             filesubtype=answer["filesubtype"],
+            size=answer["size"],
             uploaded_by_id=answer["uploaded_by_id"],
             created_at=answer["created_at"]
         )

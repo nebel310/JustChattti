@@ -1,7 +1,5 @@
 from datetime import datetime
-from pydantic import BaseModel
-from pydantic import ConfigDict
-from pydantic import Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 
@@ -30,6 +28,7 @@ class SUploadFileResponse(BaseModel):
     original_name: str = Field(..., example='original_name.jpg')
     filetype: str = Field(..., example='image')
     filesubtype: str = Field(..., example='avatar')
+    size: int = Field(..., example=1024000, description="Размер файла в байтах")
     uploaded_by_id: int = Field(..., example=1)
     created_at: datetime = Field(..., example="2024-01-01T12:00:00Z")
 
@@ -41,6 +40,7 @@ class SFileResponse(BaseModel):
     original_name: str = Field(..., example='original_name.jpg')
     filetype: str = Field(..., example='image')
     filesubtype: str = Field(..., example='avatar')
+    size: int = Field(..., example=1024000, description="Размер файла в байтах")
     uploaded_by_id: int = Field(..., example=1)
     created_at: datetime = Field(..., example="2024-01-01T12:00:00Z")
     url: str | None = Field(None, example="https://minio.example.com/presigned-url")

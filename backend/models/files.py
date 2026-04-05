@@ -20,6 +20,7 @@ class FileOrm(Model):
     original_name: Mapped[str]
     filetype: Mapped[str]  # 'image', 'video', 'audio', 'document'
     filesubtype: Mapped[str] # голосовое (да/нет), аватарка (да/нет)
+    size: Mapped[int]
     uploaded_by_id: Mapped[int] = mapped_column(ForeignKey('users.id'))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
