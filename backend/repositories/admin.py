@@ -10,12 +10,15 @@ from schemas.admin import SChangeRole, SChangeStorageLimit, ChangeRoleResponse, 
 class AdminRepository:
     """Репозиторий с логикой для админских роутов"""
     @classmethod
-    async def change_user_role(cls, change_data: SChangeRole) -> ChangeRoleResponse:
+    async def change_user_role(cls, current_user_id: int, change_data: SChangeRole) -> ChangeRoleResponse:
         """Метод для изменения роли пользователя"""
         async with new_session() as session:
             user = await session.get(UserOrm, change_data.user_id)
             if not user:
                 raise ValueError("Пользователь не найден")
+            
+            if current_user_id == change_data.user_id:
+                raise ValueError("Нельзя менять роль самому себе")
             
             query = update(UserOrm).where(
                 UserOrm.id == change_data.user_id

@@ -37,7 +37,7 @@ async def change_user_role(
     Доступно только администраторам
     """
     try:
-        response_data = await AdminRepository.change_user_role(change_data)
+        response_data = await AdminRepository.change_user_role(admin.id, change_data)
         
         return ChangeRoleResponse(
             success=response_data.success,

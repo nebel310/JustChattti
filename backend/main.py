@@ -15,6 +15,7 @@ from router.search import router as search_router
 from router.admin import router as admin_router
 from websocket.router import router as websocket_router
 from utils.minio_client import minio
+from utils.seed import create_admin
 
 
 
@@ -24,6 +25,7 @@ async def lifespan(app: FastAPI):
     """Управление жизненным циклом приложения."""    
     await create_tables()
     print('База готова к работе')
+    await create_admin()
     
     yield
     

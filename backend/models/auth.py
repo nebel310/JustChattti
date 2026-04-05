@@ -1,8 +1,9 @@
 from datetime import date
 from datetime import datetime
 from datetime import timezone
+from enum import Enum
 
-from sqlalchemy import Date, ForeignKey, String, DateTime, JSON, Enum, CheckConstraint
+from sqlalchemy import Date, ForeignKey, String, DateTime, JSON, CheckConstraint, Enum as SQLEnum
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
 
@@ -26,7 +27,7 @@ class UserOrm(Model):
     avatar_id: Mapped[int | None] = mapped_column(ForeignKey('files.id', ondelete='SET NULL'), nullable=True)
     bio: Mapped[str | None] = mapped_column(String(250), nullable=True)
     gender: Mapped[str | None] = mapped_column(String(20), nullable=True)
-    role: Mapped[UserRole] = mapped_column(Enum(UserRole), default=UserRole.USER)
+    role: Mapped[UserRole] = mapped_column(SQLEnum(UserRole), default=UserRole.USER)
     storage_used_bytes: Mapped[int] = mapped_column(default=0)
     storage_limit_bytes: Mapped[int] = mapped_column(default=1073741824) # В байтах, дефолтно 1 Гигабайт
     birth_date: Mapped[date | None] = mapped_column(Date, nullable=True)

@@ -105,11 +105,11 @@ async def login_user(login_data: SUserLogin):
     except HTTPException:
         raise
         
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail="Внутренняя ошибка сервера"
-        )
+    # except Exception as e:
+    #     raise HTTPException(
+    #         status_code=500,
+    #         detail="Внутренняя ошибка сервера"
+    #     )
 
 
 @router.post(
