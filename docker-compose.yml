@@ -50,6 +50,8 @@ services:
       - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
       - MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME:-images}
       - PORT=1000
+      - FCM_CREDENTIALS_PATH=${FCM_CREDENTIALS_PATH}
+      - FCM_PROJECT_ID=${FCM_PROJECT_ID}
     depends_on:
       db:
         condition: service_healthy
@@ -57,6 +59,7 @@ services:
         condition: service_healthy
     volumes:
       - ./backend:/app
+      - ./backend/firebase-credentials.json:/app/firebase-credentials.json
 
 
 volumes:
