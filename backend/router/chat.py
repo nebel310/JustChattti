@@ -12,7 +12,8 @@ from schemas.chat import (
 )
 from schemas.base import ErrorResponse, ValidationErrorResponse
 from utils.security import get_current_user
-from websocket.chat_manager import manager  # Импортируем менеджер
+from websocket.chat_manager import manager
+from utils.fcm_service import send_push_notification
 
 
 router = APIRouter(
@@ -234,6 +235,31 @@ async def send_message(
             current_user.id
         )
         
+        # Отправка push-уведомления, если получатель офлайн
+        try:
+            chat_detail = await ChatRepository.get_chat_detail(chat_id, current_user.id)
+            if chat_detail and chat_detail.get("other_participant"):
+                receiver_id = chat_detail["other_participant"]["user_id"]
+                from websocket.chat_manager import manager
+                if receiver_id not in manager.active_connections:
+                    notification_body = message.get("content", "")
+                    if not notification_body:
+                        notification_body = "Новое сообщение"
+                    elif len(notification_body) > 100:
+                        notification_body = notification_body[:100] + "..."
+                    
+                    await send_push_notification(
+                        user_id=receiver_id,
+                        title="Новое сообщение",
+                        body=notification_body,
+                        data_payload={
+                            "chat_id": str(chat_id),
+                            "message_id": str(message["id"])
+                        }
+                    )
+        except Exception as e:
+            print(f"Ошибка при отправке push-уведомления (REST): {e}")
+        
         return message
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -379,7 +405,6 @@ async def start_call(
         from datetime import datetime, timezone
         
         # Проверяем, что пользователь является участником чата
-        from repositories.chat import ChatRepository
         chat = await ChatRepository.get_chat_detail(chat_id, current_user.id)
         
         if not chat:
@@ -387,14 +412,34 @@ async def start_call(
         
         # В реальной реализации здесь нужно создать запись о звонке в БД
         # Для примера возвращаем фиктивные данные
+        call_id = 1
+        started_at = datetime.now(timezone.utc)
+        
+        # Отправка push-уведомления о звонке другому участнику
+        other_participant = chat.get("other_participant")
+        if other_participant:
+            receiver_id = other_participant["user_id"]
+            # Проверяем, есть ли активное WebSocket-соединение
+            if receiver_id not in manager.active_connections:
+                await send_push_notification(
+                    user_id=receiver_id,
+                    title="Входящий звонок",
+                    body=f"{current_user.username} звонит вам ({call_data.call_type})",
+                    data_payload={
+                        "chat_id": str(chat_id),
+                        "call_id": str(call_id),
+                        "call_type": call_data.call_type,
+                        "initiator_id": str(current_user.id)
+                    }
+                )
         
         return CallResponse(
-            id=1,
+            id=call_id,
             chat_id=chat_id,
             initiator_id=current_user.id,
             call_type=call_data.call_type,
             status="ringing",
-            started_at=datetime.now(timezone.utc),
+            started_at=started_at,
             ended_at=None
         )
     except HTTPException:
