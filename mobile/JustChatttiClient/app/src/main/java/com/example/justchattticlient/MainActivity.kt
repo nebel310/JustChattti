@@ -1,5 +1,6 @@
 package com.example.justchattticlient
 
+import android.os.Build                                           // <-- ДОБАВЛЕНО
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -18,6 +19,12 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         NetworkClient.init(this)
+
+        // <-- ДОБАВЛЕНО: запрос разрешения на показ уведомлений (Android 13+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 1001)
+        }
+
         setContent {
             JustChatttiClientTheme {
                 val navController = rememberNavController()
@@ -26,4 +33,3 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-

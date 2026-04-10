@@ -11,6 +11,8 @@ import com.example.justchattticlient.data.LoginRequest
 import com.example.justchattticlient.data.LoginResult
 import com.example.justchattticlient.data.TokenManager
 import com.example.justchattticlient.network.AuthRepository
+import com.example.justchattticlient.push.FCMTokenManager
+import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.launch
 
 class AuthViewModel(application: Application) : AndroidViewModel(application) {
@@ -28,9 +30,24 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 password = password,
                 username = login
             )
-            // Репозиторий внутри себя сам сохранит токены в tokenManager
             val result = repository.login(logindata)
             loginResult = result
+
+            // регистрация FCM-токена после успешного входа
+            if (result is LoginResult.Success) {
+                registerFCMToken()
+            }
+        }
+    }
+
+    // метод получения и отправки токена
+    private fun registerFCMToken() {
+        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                task.result?.let { fcmToken ->
+                    FCMTokenManager.registerToken(getApplication(), fcmToken)
+                }
+            }
         }
     }
 }
