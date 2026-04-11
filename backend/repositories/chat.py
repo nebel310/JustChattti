@@ -135,6 +135,13 @@ class ChatRepository:
                             "avatar_url": await cls._get_user_avatar_url(user_row.avatar_id)
                         }
                 
+                # Получаем список всех участников чата
+                all_participants_query = select(ChatParticipantOrm.user_id).where(
+                    ChatParticipantOrm.chat_id == chat.id
+                )
+                all_participants_result = await session.execute(all_participants_query)
+                participant_ids = all_participants_result.scalars().all()
+                
                 # Получаем последнее сообщение
                 last_message_query = select(MessageOrm).where(
                     MessageOrm.chat_id == chat.id
@@ -164,6 +171,7 @@ class ChatRepository:
                     "updated_at": chat.updated_at,
                     "unread_count": unread_count,
                     "participant_info": user_info,
+                    "participant_ids": list(participant_ids),
                     "last_message": None
                 }
                 
