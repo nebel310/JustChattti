@@ -302,18 +302,29 @@ class ChatRepository:
     
     @classmethod
     async def delete_chat(cls, chat_id: int, user_id: int) -> bool:
-        """Удаляет чат (только для создателя чата)"""
+        """Удаляет чат. Для приватного чата разрешено любому участнику, иначе только создателю"""
         async with new_session() as session:
-            # Проверяем, является ли пользователь создателем чата
-            chat_query = select(ChatOrm).where(
-                ChatOrm.id == chat_id,
-                ChatOrm.created_by_id == user_id
-            )
+            # Получаем информацию о чате
+            chat_query = select(ChatOrm).where(ChatOrm.id == chat_id)
             chat_result = await session.execute(chat_query)
             chat = chat_result.scalar_one_or_none()
             
             if not chat:
                 return False
+            
+            # Для приватного чата проверяем, является ли пользователь участником
+            if chat.chat_type == ChatType.PRIVATE:
+                participant_query = select(ChatParticipantOrm).where(
+                    ChatParticipantOrm.chat_id == chat_id,
+                    ChatParticipantOrm.user_id == user_id
+                )
+                participant_result = await session.execute(participant_query)
+                if not participant_result.scalar_one_or_none():
+                    return False
+            else:
+                # Для других типов чатов (если появятся) оставляем проверку создателя
+                if chat.created_by_id != user_id:
+                    return False
             
             # Удаляем чат (каскадное удаление сработает из-за ondelete='CASCADE')
             delete_query = delete(ChatOrm).where(ChatOrm.id == chat_id)
