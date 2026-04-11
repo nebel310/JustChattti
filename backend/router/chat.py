@@ -224,6 +224,7 @@ async def send_message(
     
     Поддерживает отправку текстовых сообщений и сообщений с файлами.
     При отправке сообщения обновляется время последней активности чата.
+    Отправляется пуш уведомление, только если пользователь не замутил отправителя
     """
     try:
         # Устанавливаем chat_id из пути
@@ -235,13 +236,19 @@ async def send_message(
             current_user.id
         )
         
-        # Отправка push-уведомления, если получатель офлайн
+        # Отправка push-уведомления, если получатель офлайн и не замутил отправителя
         try:
             chat_detail = await ChatRepository.get_chat_detail(chat_id, current_user.id)
             if chat_detail and chat_detail.get("other_participant"):
                 receiver_id = chat_detail["other_participant"]["user_id"]
                 from websocket.chat_manager import manager
+                from repositories.mute import MuteRepository
+
                 if receiver_id not in manager.active_connections:
+                    is_muted = await MuteRepository.is_muted(receiver_id, current_user.id)
+                    if is_muted:
+                        return message
+
                     notification_body = message.get("content", "")
                     if not notification_body:
                         notification_body = "Новое сообщение"
@@ -400,6 +407,7 @@ async def start_call(
     
     Поддерживает аудио и видео звонки.
     Для установки соединения используйте WebSocket с сигналами WebRTC.
+    Придет пуш уведомление звонка, только если пользователь не замутил отправителя
     """
     try:
         from datetime import datetime, timezone
@@ -415,23 +423,27 @@ async def start_call(
         call_id = 1
         started_at = datetime.now(timezone.utc)
         
-        # Отправка push-уведомления о звонке другому участнику
+        # Отправка push-уведомления о звонке другому участнику, если не замутил
         other_participant = chat.get("other_participant")
         if other_participant:
             receiver_id = other_participant["user_id"]
-            # Проверяем, есть ли активное WebSocket-соединение
-            if receiver_id not in manager.active_connections:
-                await send_push_notification(
-                    user_id=receiver_id,
-                    title="Входящий звонок",
-                    body=f"{current_user.username} звонит вам ({call_data.call_type})",
-                    data_payload={
-                        "chat_id": str(chat_id),
-                        "call_id": str(call_id),
-                        "call_type": call_data.call_type,
-                        "initiator_id": str(current_user.id)
-                    }
-                )
+            from websocket.chat_manager import manager
+            from repositories.mute import MuteRepository
+
+            is_muted = await MuteRepository.is_muted(receiver_id, current_user.id)
+            if not is_muted:
+                if receiver_id not in manager.active_connections:
+                    await send_push_notification(
+                        user_id=receiver_id,
+                        title="Входящий звонок",
+                        body=f"{current_user.username} звонит вам ({call_data.call_type})",
+                        data_payload={
+                            "chat_id": str(chat_id),
+                            "call_id": str(call_id),
+                            "call_type": call_data.call_type,
+                            "initiator_id": str(current_user.id)
+                        }
+                    )
         
         return CallResponse(
             id=call_id,
