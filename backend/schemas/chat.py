@@ -71,6 +71,11 @@ class ChatResponse(BaseModel):
             "created_at": "2024-01-01T12:05:00Z"
         }
     )
+    participant_ids: List[int] = Field(
+        default_factory=list,
+        example=[1, 2],
+        description="Список ID участников чата"
+    )
     
     model_config = ConfigDict(from_attributes=True)
 

@@ -13,7 +13,8 @@ from router.files import router as files_router
 from router.chat import router as chat_router
 from router.search import router as search_router
 from router.admin import router as admin_router
-from router.fcm import router as fcm_router  # <-- добавлено
+from router.fcm import router as fcm_router
+from router.mute import router as mute_router
 from websocket.router import router as websocket_router
 from utils.minio_client import minio
 from utils.seed import create_admin
@@ -92,6 +93,9 @@ def custom_openapi():
         ("/chats/messages/{message_id}", "delete"): [{"Bearer": []}],
         ("/chats/messages/mark-read", "post"): [{"Bearer": []}],
         ("/chats/{chat_id}/calls", "post"): [{"Bearer": []}],
+        ("/users/me/muted/{user_id}", "post"): [{"Bearer": []}],
+        ("/users/me/muted/{user_id}", "delete"): [{"Bearer": []}],
+        ("/users/me/muted/", "get"): [{"Bearer": []}],
         ("/search/users", "post"): [{"Bearer": []}],
         ("/search/users/username/{username}", "get"): [{"Bearer": []}],
         ("/search/messages/global", "post"): [{"Bearer": []}],
@@ -134,6 +138,7 @@ app.include_router(search_router)
 app.include_router(websocket_router)
 app.include_router(admin_router)
 app.include_router(fcm_router)
+app.include_router(mute_router)
 
 
 
