@@ -509,7 +509,6 @@ class MessageRepository:
 
             query = select(MessageOrm).where(MessageOrm.chat_id == chat_id)
 
-            # разбор курсора
             cursor_created_at = None
             cursor_id = None
             if cursor:
@@ -518,7 +517,6 @@ class MessageRepository:
                 cursor_created_at = before
                 cursor_id = None
 
-            # фильтрация
             if cursor_created_at is not None and cursor_id is not None:
                 query = query.where(
                     or_(
@@ -538,7 +536,12 @@ class MessageRepository:
             messages = result.scalars().all()
 
             has_more = len(messages) > limit
+            next_cursor = None
             if has_more:
+                extra = messages[limit]  # первое сообщение за пределами limit
+                next_cursor = encode_cursor(extra.created_at, extra.id)
+                messages = messages[:limit]
+            else:
                 messages = messages[:limit]
 
             messages_dict = []
@@ -547,12 +550,6 @@ class MessageRepository:
 
             await cls._mark_messages_as_read(chat_id, user_id, messages, session)
 
-            next_cursor = None
-            if messages:
-                oldest = messages[0]
-                next_cursor = encode_cursor(oldest.created_at, oldest.id)
-
-            # total считаем только для первой страницы (без курсора и before)
             total = 0
             if cursor is None and before is None:
                 count_query = select(func.count(MessageOrm.id)).where(MessageOrm.chat_id == chat_id)
