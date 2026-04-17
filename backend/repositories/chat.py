@@ -15,6 +15,7 @@ from models.auth import UserOrm
 from models.files import FileOrm
 from schemas.chat import ChatCreate, MessageCreate
 from utils.minio_client import minio
+from utils.cursor import decode_cursor, encode_cursor
 
 
 
@@ -490,61 +491,80 @@ class MessageRepository:
     
     @classmethod
     async def get_messages(
-        cls, 
-        chat_id: int, 
+        cls,
+        chat_id: int,
         user_id: int,
-        skip: int = 0, 
         limit: int = 50,
+        cursor: Optional[str] = None,
         before: Optional[datetime] = None
     ) -> Dict[str, Any]:
-        """Получает историю сообщений в чате"""
         async with new_session() as session:
-            # Проверяем, является ли пользователь участником чата
+            # проверка участника
             participant_query = select(ChatParticipantOrm).where(
                 ChatParticipantOrm.chat_id == chat_id,
                 ChatParticipantOrm.user_id == user_id
             )
-            participant_result = await session.execute(participant_query)
-            if not participant_result.scalar_one_or_none():
+            if not (await session.execute(participant_query)).scalar_one_or_none():
                 raise ValueError("Пользователь не является участником чата")
-            
-            # Базовый запрос для сообщений
-            query = select(MessageOrm).where(
-                MessageOrm.chat_id == chat_id
-            ).order_by(desc(MessageOrm.created_at))
-            
-            if before:
-                query = query.where(MessageOrm.created_at < before)
-            
-            # Общее количество сообщений
-            count_query = select(func.count(MessageOrm.id)).where(
-                MessageOrm.chat_id == chat_id
-            )
-            if before:
-                count_query = count_query.where(MessageOrm.created_at < before)
-            
-            count_result = await session.execute(count_query)
-            total = count_result.scalar() or 0
-            
-            # Получаем сообщения
-            messages_query = query.offset(skip).limit(limit)
-            messages_result = await session.execute(messages_query)
-            messages = messages_result.scalars().all()
-            
-            # Конвертируем в словари
+
+            query = select(MessageOrm).where(MessageOrm.chat_id == chat_id)
+
+            # разбор курсора
+            cursor_created_at = None
+            cursor_id = None
+            if cursor:
+                cursor_created_at, cursor_id = decode_cursor(cursor)
+            elif before:
+                cursor_created_at = before
+                cursor_id = None
+
+            # фильтрация
+            if cursor_created_at is not None and cursor_id is not None:
+                query = query.where(
+                    or_(
+                        MessageOrm.created_at < cursor_created_at,
+                        and_(
+                            MessageOrm.created_at == cursor_created_at,
+                            MessageOrm.id < cursor_id
+                        )
+                    )
+                )
+            elif cursor_created_at is not None:
+                query = query.where(MessageOrm.created_at < cursor_created_at)
+
+            query = query.order_by(desc(MessageOrm.created_at), desc(MessageOrm.id))
+            messages_query = query.limit(limit + 1)
+            result = await session.execute(messages_query)
+            messages = result.scalars().all()
+
+            has_more = len(messages) > limit
+            if has_more:
+                messages = messages[:limit]
+
             messages_dict = []
-            for message in reversed(messages):  # Возвращаем в правильном порядке
-                messages_dict.append(await cls._message_to_dict(message))
-            
-            # Помечаем сообщения как прочитанные (игнорируем возвращаемый словарь, но метод может быть использован)
+            for msg in reversed(messages):
+                messages_dict.append(await cls._message_to_dict(msg))
+
             await cls._mark_messages_as_read(chat_id, user_id, messages, session)
-            
+
+            next_cursor = None
+            if messages:
+                oldest = messages[0]
+                next_cursor = encode_cursor(oldest.created_at, oldest.id)
+
+            # total считаем только для первой страницы (без курсора и before)
+            total = 0
+            if cursor is None and before is None:
+                count_query = select(func.count(MessageOrm.id)).where(MessageOrm.chat_id == chat_id)
+                total = (await session.execute(count_query)).scalar() or 0
+
             return {
                 "messages": messages_dict,
                 "total": total,
-                "page": skip // limit + 1 if limit > 0 else 1,
+                "page": None,
                 "page_size": limit,
-                "has_more": (skip + limit) < total
+                "has_more": has_more,
+                "next_cursor": next_cursor,
             }
     
     

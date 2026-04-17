@@ -2,7 +2,7 @@ from datetime import datetime
 from datetime import timezone
 from enum import Enum
 
-from sqlalchemy import ForeignKey, String, Text, Enum as SQLEnum, Boolean
+from sqlalchemy import ForeignKey, String, Text, Enum as SQLEnum, Boolean, Index
 from sqlalchemy import DateTime, JSON
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -121,6 +121,10 @@ class MessageOrm(Model):
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc)
+    )
+    
+    __table_args__ = (
+        Index('idx_messages_chat_created_id', 'chat_id', 'created_at', 'id'),
     )
 
 

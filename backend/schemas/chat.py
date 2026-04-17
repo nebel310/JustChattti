@@ -190,10 +190,15 @@ class MessagesResponse(BaseModel):
             }
         ]
     )
-    total: int = Field(..., example=50)
-    page: int = Field(..., example=1)
+    total: Optional[int] = Field(None, example=50)
+    page: Optional[int] = Field(None, example=1)
     page_size: int = Field(..., example=20)
     has_more: bool = Field(..., example=True)
+    next_cursor: Optional[str] = Field(
+        None,
+        example="MjAyNC0wMS0wMVQxMjowMDowMCswMDowMHwxMjM=",
+        description="Курсор для следующей страницы (передавать в параметре cursor)"
+    )
 
 
 class WebRTCMessage(BaseModel):
