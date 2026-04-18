@@ -168,8 +168,9 @@ async def delete_chat(
 async def get_messages(
     chat_id: int = Path(..., description="ID чата"),
     limit: int = Query(50, ge=1, le=100, description="Количество возвращаемых сообщений"),
-    cursor: Optional[str] = Query(None, description="Курсор для продолжения (из поля next_cursor)"),
-    before: Optional[str] = Query(None, description="(Устаревший) ISO дата для совместимости"),
+    cursor: Optional[str] = Query(None, description="Курсор для продолжения"),
+    before: Optional[str] = Query(None, description="(Устаревший) ISO дата"),
+    direction: str = Query("before", regex="^(before|after)$", description="Направление: before (старые) или after (новые)"),
     current_user: UserOrm = Depends(get_current_user)
 ):
     """
@@ -177,23 +178,20 @@ async def get_messages(
 
     Для первой страницы передавайте только limit.
     Для следующих страниц используйте cursor из поля next_cursor предыдущего ответа
+    Также указывайте направление: в какую сторону от текущего курсора искать сообщения
     """
     try:
-        before_date = None        
+        before_date = None
         if before:
-            try:
-                before_date = datetime.fromisoformat(before.replace('Z', '+00:00'))
-            except ValueError:
-                raise HTTPException(status_code=400, detail="Неверный формат даты. Используйте ISO формат")
-
-        messages_data = await MessageRepository.get_messages(
+            before_date = datetime.fromisoformat(before.replace('Z', '+00:00'))
+        return await MessageRepository.get_messages(
             chat_id=chat_id,
             user_id=current_user.id,
             limit=limit,
             cursor=cursor,
-            before=before_date
+            before=before_date,
+            direction=direction
         )
-        return messages_data
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:

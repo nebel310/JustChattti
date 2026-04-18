@@ -194,12 +194,8 @@ class MessagesResponse(BaseModel):
     page: Optional[int] = Field(None, example=1)
     page_size: int = Field(..., example=20)
     has_more: bool = Field(..., example=True)
-    next_cursor: Optional[str] = Field(
-        None,
-        example="MjAyNC0wMS0wMVQxMjowMDowMCswMDowMHwxMjM=",
-        description="Курсор для следующей страницы (передавать в параметре cursor)"
-    )
-
+    next_cursor: Optional[str] = Field(None, example="...", description="Курсор для более старых сообщений")
+    prev_cursor: Optional[str] = Field(None, example="...", description="Курсор для более новых сообщений")
 
 class WebRTCMessage(BaseModel):
     """Схема для WebRTC сигналов"""

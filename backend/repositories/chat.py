@@ -496,7 +496,8 @@ class MessageRepository:
         user_id: int,
         limit: int = 50,
         cursor: Optional[str] = None,
-        before: Optional[datetime] = None
+        before: Optional[datetime] = None,
+        direction: str = "before"  # "before" или "after"
     ) -> Dict[str, Any]:
         async with new_session() as session:
             # проверка участника
@@ -517,38 +518,69 @@ class MessageRepository:
                 cursor_created_at = before
                 cursor_id = None
 
-            if cursor_created_at is not None and cursor_id is not None:
-                query = query.where(
-                    or_(
-                        MessageOrm.created_at < cursor_created_at,
-                        and_(
-                            MessageOrm.created_at == cursor_created_at,
-                            MessageOrm.id < cursor_id
+            # Определяем порядок сортировки и условие в зависимости от direction
+            if direction == "before":
+                # Старые сообщения: сортировка DESC, условие <
+                order_by = [desc(MessageOrm.created_at), desc(MessageOrm.id)]
+                if cursor_created_at is not None and cursor_id is not None:
+                    query = query.where(
+                        or_(
+                            MessageOrm.created_at < cursor_created_at,
+                            and_(
+                                MessageOrm.created_at == cursor_created_at,
+                                MessageOrm.id < cursor_id
+                            )
                         )
                     )
-                )
-            elif cursor_created_at is not None:
-                query = query.where(MessageOrm.created_at < cursor_created_at)
+                elif cursor_created_at is not None:
+                    query = query.where(MessageOrm.created_at < cursor_created_at)
+            else:  # direction == "after"
+                # Новые сообщения: сортировка ASC, условие >
+                order_by = [MessageOrm.created_at.asc(), MessageOrm.id.asc()]
+                if cursor_created_at is not None and cursor_id is not None:
+                    query = query.where(
+                        or_(
+                            MessageOrm.created_at > cursor_created_at,
+                            and_(
+                                MessageOrm.created_at == cursor_created_at,
+                                MessageOrm.id > cursor_id
+                            )
+                        )
+                    )
+                elif cursor_created_at is not None:
+                    query = query.where(MessageOrm.created_at > cursor_created_at)
 
-            query = query.order_by(desc(MessageOrm.created_at), desc(MessageOrm.id))
+            query = query.order_by(*order_by)
             messages_query = query.limit(limit + 1)
             result = await session.execute(messages_query)
             messages = result.scalars().all()
 
             has_more = len(messages) > limit
             next_cursor = None
+            prev_cursor = None
+
             if has_more:
-                extra = messages[limit]  # первое сообщение за пределами limit
-                next_cursor = encode_cursor(extra.created_at, extra.id)
+                extra = messages[limit]  # первое за пределами limit
+                if direction == "before":
+                    next_cursor = encode_cursor(extra.created_at, extra.id)
+                else:
+                    prev_cursor = encode_cursor(extra.created_at, extra.id)
                 messages = messages[:limit]
             else:
                 messages = messages[:limit]
 
-            messages_dict = []
-            for msg in reversed(messages):
-                messages_dict.append(await cls._message_to_dict(msg))
+            # Для "before" возвращаем сообщения в прямом порядке (старые → новые)
+            # Для "after" они уже в прямом порядке
+            if direction == "before":
+                messages_dict = [await cls._message_to_dict(msg) for msg in reversed(messages)]
+            else:
+                messages_dict = [await cls._message_to_dict(msg) for msg in messages]
+                # prev_cursor установлен, next_cursor = None (вверх от after не идём)
+                next_cursor = None
 
-            await cls._mark_messages_as_read(chat_id, user_id, messages, session)
+            # Помечаем прочитанными только при загрузке старых сообщений?
+            if direction == "before":
+                await cls._mark_messages_as_read(chat_id, user_id, messages, session)
 
             total = 0
             if cursor is None and before is None:
@@ -562,6 +594,7 @@ class MessageRepository:
                 "page_size": limit,
                 "has_more": has_more,
                 "next_cursor": next_cursor,
+                "prev_cursor": prev_cursor,
             }
     
     

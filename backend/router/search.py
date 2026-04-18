@@ -132,40 +132,26 @@ async def search_users_by_exact_username(
 )
 async def search_messages_global(
     search_request: MessageSearchRequest,
-    skip: int = Query(0, ge=0, description="Количество пропускаемых результатов"),
     limit: int = Query(50, ge=1, le=100, description="Количество возвращаемых результатов"),
+    cursor: Optional[str] = Query(None, description="Курсор для пагинации"),
+    direction: str = Query("before", regex="^(before|after)$", description="Направление пагинации"),
     current_user: UserOrm = Depends(get_current_user)
 ):
     """
-    Глобальный поиск по сообщениям.
-    
-    Ищет текстовые сообщения во всех чатах текущего пользователя.
-    Возвращает сообщения, содержащие указанный текст.
-    Регистронезависимый поиск.
+    Глобальный полнотекстовый поиск по сообщениям с keyset-пагинацией.
     """
     try:
         if len(search_request.text) < 1:
-            raise HTTPException(
-                status_code=400,
-                detail="Текст для поиска не может быть пустым"
-            )
+            raise HTTPException(status_code=400, detail="Текст для поиска не может быть пустым")
         
-        messages = await MessageSearchRepository.search_messages_global(
-            current_user.id,
-            search_request.text,
-            skip,
-            limit
+        result = await MessageSearchRepository.search_messages_global(
+            current_user_id=current_user.id,
+            text_query=search_request.text,
+            limit=limit,
+            cursor=cursor,
+            direction=direction
         )
-        
-        total_estimate = len(messages) + skip
-        
-        return MessageSearchResponse(
-            messages=messages,
-            total=total_estimate,
-            page=skip // limit + 1 if limit > 0 else 1,
-            page_size=limit,
-            has_more=len(messages) == limit
-        )
+        return result
     except HTTPException:
         raise
     except Exception as e:
@@ -186,42 +172,27 @@ async def search_messages_global(
 async def search_messages_in_chat(
     chat_id: int = Path(..., description="ID чата для поиска"),
     search_request: MessageSearchRequest = Body(...),
-    skip: int = Query(0, ge=0, description="Количество пропускаемых результатов"),
     limit: int = Query(50, ge=1, le=100, description="Количество возвращаемых результатов"),
+    cursor: Optional[str] = Query(None, description="Курсор для пагинации"),
+    direction: str = Query("before", regex="^(before|after)$", description="Направление пагинации"),
     current_user: UserOrm = Depends(get_current_user)
 ):
     """
-    Поиск по сообщениям в конкретном чате.
-    
-    Ищет текстовые сообщения в указанном чате.
-    Возвращает сообщения, содержащие указанный текст.
-    Регистронезависимый поиск.
-    Только участники чата могут искать сообщения в нем.
+    Полнотекстовый поиск по сообщениям в конкретном чате с keyset-пагинацией.
     """
     try:
         if len(search_request.text) < 1:
-            raise HTTPException(
-                status_code=400,
-                detail="Текст для поиска не может быть пустым"
-            )
+            raise HTTPException(status_code=400, detail="Текст для поиска не может быть пустым")
         
-        messages = await MessageSearchRepository.search_messages_in_chat(
-            current_user.id,
-            chat_id,
-            search_request.text,
-            skip,
-            limit
+        result = await MessageSearchRepository.search_messages_in_chat(
+            current_user_id=current_user.id,
+            chat_id=chat_id,
+            text_query=search_request.text,
+            limit=limit,
+            cursor=cursor,
+            direction=direction
         )
-        
-        total_estimate = len(messages) + skip
-        
-        return MessageSearchResponse(
-            messages=messages,
-            total=total_estimate,
-            page=skip // limit + 1 if limit > 0 else 1,
-            page_size=limit,
-            has_more=len(messages) == limit
-        )
+        return result
     except ValueError as e:
         raise HTTPException(status_code=403, detail=str(e))
     except HTTPException:
@@ -241,45 +212,31 @@ async def search_messages_in_chat(
 )
 async def search_messages_by_username(
     username: str = Path(..., description="Username отправителя для поиска"),
-    skip: int = Query(0, ge=0, description="Количество пропускаемых результатов"),
     limit: int = Query(50, ge=1, le=100, description="Количество возвращаемых результатов"),
+    cursor: Optional[str] = Query(None, description="Курсор для пагинации"),
+    direction: str = Query("before", regex="^(before|after)$", description="Направление пагинации"),
     current_user: UserOrm = Depends(get_current_user)
 ):
     """
-    Поиск сообщений от указанного пользователя.
-    
-    Ищет сообщения от пользователей, чей username содержит указанную строку.
-    Поиск только по текстовым сообщениям во всех чатах текущего пользователя.
-    Регистронезависимый поиск по username.
+    Поиск сообщений от пользователей с указанным username (keyset-пагинация).
     """
     try:
         if len(username) < 1:
-            raise HTTPException(
-                status_code=400,
-                detail="Username для поиска не может быть пустым"
-            )
+            raise HTTPException(status_code=400, detail="Username для поиска не может быть пустым")
         
-        messages = await MessageSearchRepository.search_messages_by_username(
-            current_user.id,
-            username,
-            skip,
-            limit
+        result = await MessageSearchRepository.search_messages_by_username(
+            current_user_id=current_user.id,
+            username_query=username,
+            limit=limit,
+            cursor=cursor,
+            direction=direction
         )
-        
-        total_estimate = len(messages) + skip
-        
-        return MessageSearchResponse(
-            messages=messages,
-            total=total_estimate,
-            page=skip // limit + 1 if limit > 0 else 1,
-            page_size=limit,
-            has_more=len(messages) == limit
-        )
+        return result
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
+    
 
 @router.get(
     "/messages/sender/{user_id}",
@@ -296,67 +253,25 @@ async def search_messages_by_user_id(
         None,
         description="Текст для поиска в сообщениях (опционально)"
     ),
-    skip: int = Query(0, ge=0, description="Количество пропускаемых результатов"),
     limit: int = Query(50, ge=1, le=100, description="Количество возвращаемых результатов"),
+    cursor: Optional[str] = Query(None, description="Курсор для пагинации"),
+    direction: str = Query("before", regex="^(before|after)$", description="Направление пагинации"),
     current_user: UserOrm = Depends(get_current_user)
 ):
     """
-    Поиск сообщений от пользователя по его ID.
-    
-    Ищет сообщения от указанного пользователя.
+    Поиск сообщений от пользователя по его ID с keyset-пагинацией.
     Если указан text_query, ищет только сообщения, содержащие этот текст.
     Поиск только во всех чатах текущего пользователя.
     """
     try:
-        # Используем существующий метод поиска по username, но сначала находим username по ID
-        from repositories.auth import UserRepository
-        
-        user_info = await UserRepository.get_public_user_info(user_id)
-        if not user_info:
-            raise HTTPException(status_code=400, detail="Пользователь не найден")
-        
-        # Если указан text_query, используем комбинированный поиск
-        if text_query:
-            # Получаем все сообщения от пользователя
-            all_messages = await MessageSearchRepository.search_messages_by_username(
-                current_user.id,
-                user_info["username"],
-                0,
-                1000  # Большой лимит для фильтрации на стороне Python
-            )
-            
-            # Фильтруем по тексту
-            filtered_messages = [
-                msg for msg in all_messages
-                if msg["content"] and text_query.lower() in msg["content"].lower()
-            ]
-            
-            # Применяем пагинацию
-            start_idx = skip
-            end_idx = skip + limit
-            paginated_messages = filtered_messages[start_idx:end_idx]
-            
-            total_estimate = len(filtered_messages)
-        else:
-            # Просто ищем все сообщения от пользователя
-            messages = await MessageSearchRepository.search_messages_by_username(
-                current_user.id,
-                user_info["username"],
-                skip,
-                limit
-            )
-            
-            paginated_messages = messages
-            total_estimate = len(messages) + skip
-        
-        return MessageSearchResponse(
-            messages=paginated_messages,
-            total=total_estimate,
-            page=skip // limit + 1 if limit > 0 else 1,
-            page_size=limit,
-            has_more=len(paginated_messages) == limit
+        result = await MessageSearchRepository.search_messages_by_sender(
+            current_user_id=current_user.id,
+            sender_id=user_id,
+            text_query=text_query,
+            limit=limit,
+            cursor=cursor,
+            direction=direction
         )
-    except HTTPException:
-        raise
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
