@@ -167,37 +167,31 @@ async def delete_chat(
 )
 async def get_messages(
     chat_id: int = Path(..., description="ID чата"),
-    skip: int = Query(0, ge=0, description="Количество пропускаемых сообщений"),
     limit: int = Query(50, ge=1, le=100, description="Количество возвращаемых сообщений"),
-    before: Optional[str] = Query(
-        None, 
-        description="Дата в формате ISO для получения сообщений, созданных до этой даты"
-    ),
+    cursor: Optional[str] = Query(None, description="Курсор для продолжения"),
+    before: Optional[str] = Query(None, description="(Устаревший) ISO дата"),
+    direction: str = Query("before", regex="^(before|after)$", description="Направление: before (старые) или after (новые)"),
     current_user: UserOrm = Depends(get_current_user)
 ):
     """
     Получает историю сообщений в чате.
-    
-    Возвращает сообщения в обратном хронологическом порядке (новые первыми).
-    При получении сообщений они автоматически помечаются как прочитанные.
+
+    Для первой страницы передавайте только limit.
+    Для следующих страниц используйте cursor из поля next_cursor предыдущего ответа
+    Также указывайте направление: в какую сторону от текущего курсора искать сообщения
     """
     try:
         before_date = None
-        
         if before:
-            try:
-                before_date = datetime.fromisoformat(before.replace('Z', '+00:00'))
-            except ValueError:
-                raise HTTPException(
-                    status_code=400, 
-                    detail="Неверный формат даты. Используйте ISO формат"
-                )
-        
-        messages = await MessageRepository.get_messages(
-            chat_id, current_user.id, skip, limit, before_date
+            before_date = datetime.fromisoformat(before.replace('Z', '+00:00'))
+        return await MessageRepository.get_messages(
+            chat_id=chat_id,
+            user_id=current_user.id,
+            limit=limit,
+            cursor=cursor,
+            before=before_date,
+            direction=direction
         )
-        
-        return messages
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:

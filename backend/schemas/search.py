@@ -36,6 +36,8 @@ class MessageSearchResult(BaseModel):
     metadata: Optional[Dict[str, Any]] = Field(None, example={"duration": 30})
     created_at: datetime = Field(..., example="2024-01-01T12:00:00Z")
     updated_at: datetime = Field(..., example="2024-01-01T12:00:00Z")
+    context_prev_cursor: Optional[str] = Field(None, example="MjAyNC0wMS0wMVQxMjowMDowMCswMDowMHwxMjM=", description="Курсор для более старых сообщений в чате")
+    context_next_cursor: Optional[str] = Field(None, example="MjAyNC0wMS0wMVQxMjowMDowMCswMDowMHwxMjU=", description="Курсор для более новых сообщений в чате")
     
     model_config = ConfigDict(from_attributes=True)
 
@@ -77,14 +79,18 @@ class MessageSearchResponse(BaseModel):
                 "status": "read",
                 "edited": False,
                 "created_at": "2024-01-01T12:00:00Z",
-                "updated_at": "2024-01-01T12:00:00Z"
+                "updated_at": "2024-01-01T12:00:00Z",
+                "context_prev_cursor": "MjAyNC0wMS0wMVQxMjowMDowMCswMDowMHwxMjM=",
+                "context_next_cursor": "MjAyNC0wMS0wMVQxMjowMDowMCswMDowMHwxMjU="
             }
         ]
     )
     total: int = Field(..., example=15)
-    page: int = Field(..., example=1)
+    page: Optional[int] = Field(None, example=1)
     page_size: int = Field(..., example=20)
     has_more: bool = Field(..., example=True)
+    next_cursor: Optional[str] = Field(None, example="MjAyNC0wMS0wMVQxMjowMDowMCswMDowMHwxMjM=", description="Курсор для следующей страницы результатов поиска")
+    prev_cursor: Optional[str] = Field(None, example="MjAyNC0wMS0wMVQxMjowMDowMCswMDowMHw5OQ==", description="Курсор для предыдущей страницы результатов поиска")
 
 
 class UserSearchRequest(BaseModel):

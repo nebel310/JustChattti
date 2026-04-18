@@ -190,11 +190,12 @@ class MessagesResponse(BaseModel):
             }
         ]
     )
-    total: int = Field(..., example=50)
-    page: int = Field(..., example=1)
+    total: Optional[int] = Field(None, example=50)
+    page: Optional[int] = Field(None, example=1)
     page_size: int = Field(..., example=20)
     has_more: bool = Field(..., example=True)
-
+    next_cursor: Optional[str] = Field(None, example="...", description="Курсор для более старых сообщений")
+    prev_cursor: Optional[str] = Field(None, example="...", description="Курсор для более новых сообщений")
 
 class WebRTCMessage(BaseModel):
     """Схема для WebRTC сигналов"""
