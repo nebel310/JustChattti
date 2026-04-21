@@ -1,7 +1,7 @@
 import json
 from datetime import datetime
 from datetime import timezone
-from typing import Dict, Set, Optional
+from typing import Dict, Set, Optional, List
 
 from fastapi import WebSocket
 from fastapi.encoders import jsonable_encoder
@@ -10,6 +10,8 @@ import logging
 
 from repositories.chat import ChatRepository
 from utils.fcm_service import send_push_notification
+
+
 
 
 logging.basicConfig(level=logging.INFO)
@@ -23,8 +25,6 @@ class ConnectionManager:
     def __init__(self):
         self.active_connections: Dict[int, Set[WebSocket]] = {}
         self.connection_users: Dict[WebSocket, int] = {}
-        self.chat_subscriptions: Dict[int, Set[int]] = {}
-
 
     async def connect(self, websocket: WebSocket, user_id: int):
         """Устанавливает соединение с пользователем"""
@@ -71,55 +71,6 @@ class ConnectionManager:
             logger.error(f"Ошибка обновления статуса пользователя {user_id}: {e}")
 
 
-    async def subscribe_to_chat(self, websocket: WebSocket, chat_id: int):
-        """Подписывает пользователя на обновления чата, если он является участником"""
-        user_id = self.connection_users.get(websocket)
-        if not user_id:
-            return
-
-        try:
-            from repositories.chat import ChatRepository
-            chat = await ChatRepository.get_chat_detail(chat_id, user_id)
-            if not chat:
-                await self.send_to_user({
-                    "type": "error",
-                    "error": "Вы не являетесь участником этого чата"
-                }, user_id)
-                logger.warning(f"Пользователь {user_id} попытался подписаться на чат {chat_id}, но не участник")
-                return
-        except Exception as e:
-            logger.error(f"Ошибка проверки участия в чате {chat_id}: {e}")
-            await self.send_to_user({
-                "type": "error",
-                "error": "Внутренняя ошибка сервера"
-            }, user_id)
-            return
-
-        if chat_id not in self.chat_subscriptions:
-            self.chat_subscriptions[chat_id] = set()
-
-        self.chat_subscriptions[chat_id].add(user_id)
-        logger.info(f"Пользователь {user_id} подписался на чат {chat_id}")
-
-        await self.send_to_user({
-            "type": "subscribed",
-            "chat_id": chat_id
-        }, user_id)
-
-
-    async def unsubscribe_from_chat(self, websocket: WebSocket, chat_id: int):
-        """Отписывает пользователя от обновлений чата"""
-        user_id = self.connection_users.get(websocket)
-        if not user_id:
-            return
-
-        if chat_id in self.chat_subscriptions:
-            self.chat_subscriptions[chat_id].discard(user_id)
-            logger.info(f"Пользователь {user_id} отписался от чата {chat_id}")
-            if not self.chat_subscriptions[chat_id]:
-                del self.chat_subscriptions[chat_id]
-
-
     async def send_to_user(self, message: dict, user_id: int):
         """Отправляет сообщение всем соединениям пользователя"""
         connections = self.active_connections.get(user_id, set())
@@ -147,28 +98,34 @@ class ConnectionManager:
         chat_id: int,
         exclude_user_id: Optional[int] = None
     ):
-        """Отправляет сообщение всем подписчикам чата"""
-        user_ids = self.chat_subscriptions.get(chat_id, set())
-        logger.info(f"Broadcast в чат {chat_id} для пользователей: {user_ids} (исключая {exclude_user_id})")
-        for user_id in user_ids:
-            if exclude_user_id is None or user_id != exclude_user_id:
-                await self.send_to_user(message, user_id)
-
+        """Отправляет сообщение всем активным участникам чата"""
+        try:
+            # Получаем ID всех участников чата
+            participant_ids = await self._get_chat_participants(chat_id)
+            logger.info(f"Broadcast в чат {chat_id} участникам: {participant_ids} (исключая {exclude_user_id})")
+            for user_id in participant_ids:
+                if exclude_user_id is None or user_id != exclude_user_id:
+                    await self.send_to_user(message, user_id)
+        except Exception as e:
+            logger.error(f"Ошибка broadcast в чат {chat_id}: {e}")
 
     async def broadcast_presence(self, user_id: int, is_online: bool):
-        """Рассылает информацию о статусе пользователя"""
+        """Рассылает информацию о статусе пользователя всем участникам его чатов"""
         presence_msg = {
             "type": "presence",
             "user_id": user_id,
             "is_online": is_online,
             "last_seen": datetime.now(timezone.utc).isoformat()
         }
-        for chat_id, user_ids in self.chat_subscriptions.items():
-            if user_id in user_ids:
-                for other_user_id in user_ids:
+        try:
+            chat_ids = await self._get_user_chat_ids(user_id)
+            for chat_id in chat_ids:
+                participant_ids = await self._get_chat_participants(chat_id)
+                for other_user_id in participant_ids:
                     if other_user_id != user_id:
                         await self.send_to_user(presence_msg, other_user_id)
-
+        except Exception as e:
+            logger.error(f"Ошибка broadcast presence для {user_id}: {e}")
 
     async def handle_typing(self, websocket: WebSocket, data: dict):
         """Обрабатывает индикатор набора текста"""
@@ -257,7 +214,7 @@ class ConnectionManager:
                 "type": "message",
                 "message": message
             }
-            await self.broadcast_to_chat(chat_message, data["chat_id"])  # exclude_user_id убран
+            await self.broadcast_to_chat(chat_message, data["chat_id"])
 
             await self.send_to_user({
                 "type": "message_sent",
@@ -288,11 +245,10 @@ class ConnectionManager:
             from repositories.chat import MessageRepository
             updated_ids = await MessageRepository.mark_as_delivered(message_ids, user_id, chat_id)
             if updated_ids:
-                # Уведомляем всех участников чата о доставке (можно только отправителей, но для простоты - весь чат)
                 await self.broadcast_to_chat({
                     "type": "delivered",
                     "message_ids": updated_ids,
-                    "user_id": user_id  # кто подтвердил доставку
+                    "user_id": user_id
                 }, chat_id)
         except Exception as e:
             logger.error(f"Ошибка при подтверждении доставки: {e}")
@@ -313,12 +269,11 @@ class ConnectionManager:
             from repositories.chat import MessageRepository
             updated_map = await MessageRepository.mark_as_read(message_ids, user_id, chat_id)
             if updated_map:
-                # Отправляем каждому отправителю уведомление о прочтении его сообщений
                 for sender_id, msg_ids in updated_map.items():
                     await self.send_to_user({
                         "type": "read",
                         "message_ids": msg_ids,
-                        "user_id": user_id  # кто прочитал
+                        "user_id": user_id
                     }, sender_id)
         except Exception as e:
             logger.error(f"Ошибка при подтверждении прочтения: {e}")
@@ -339,6 +294,27 @@ class ConnectionManager:
             "chat_id": chat_id
         }, chat_id)
 
+
+    @staticmethod
+    async def _get_chat_participants(chat_id: int) -> List[int]:
+        """Возвращает список user_id участников чата"""
+        try:
+            from repositories.chat import ChatRepository
+            return await ChatRepository.get_chat_participant_ids(chat_id)
+        except Exception as e:
+            logger.error(f"Не удалось получить участников чата {chat_id}: {e}")
+            return []
+
+    @staticmethod
+    async def _get_user_chat_ids(user_id: int) -> List[int]:
+        """Возвращает список ID чатов, в которых состоит пользователь"""
+        try:
+            from repositories.chat import ChatRepository
+            chats = await ChatRepository.get_user_chats(user_id, limit=1000)  # предполагаем не более 1000 чатов
+            return [c["id"] for c in chats]
+        except Exception as e:
+            logger.error(f"Не удалось получить чаты пользователя {user_id}: {e}")
+            return []
 
 
 manager = ConnectionManager()
