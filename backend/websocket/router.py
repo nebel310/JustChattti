@@ -41,19 +41,7 @@ async def websocket_endpoint(
             data = await websocket.receive_json()
             message_type = data.get("type")
 
-            if message_type == "subscribe":
-                chat_id = data.get("chat_id")
-
-                if isinstance(chat_id, int):
-                    await manager.subscribe_to_chat(websocket, chat_id)
-
-            elif message_type == "unsubscribe":
-                chat_id = data.get("chat_id")
-
-                if isinstance(chat_id, int):
-                    await manager.unsubscribe_from_chat(websocket, chat_id)
-
-            elif message_type == "typing":
+            if message_type == "typing":
                 await manager.handle_typing(websocket, data)
 
             elif message_type == "webrtc":

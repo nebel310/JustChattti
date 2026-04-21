@@ -227,18 +227,21 @@ class ChatRepository:
     async def get_chat_detail(
         cls, 
         chat_id: int, 
-        user_id: int
+        user_id: Optional[int] = None
     ) -> Optional[Dict[str, Any]]:
-        """Получает детальную информацию о чате"""
+        """Получает детальную информацию о чате.
+        Если user_id не указан, проверка прав не выполняется (для системного использования).
+        """
         async with new_session() as session:
-            # Проверяем, является ли пользователь участником чата
-            participant_query = select(ChatParticipantOrm).where(
-                ChatParticipantOrm.chat_id == chat_id,
-                ChatParticipantOrm.user_id == user_id
-            )
-            participant_result = await session.execute(participant_query)
-            if not participant_result.scalar_one_or_none():
-                return None
+            # Проверяем, является ли пользователь участником чата, если user_id передан
+            if user_id is not None:
+                participant_query = select(ChatParticipantOrm).where(
+                    ChatParticipantOrm.chat_id == chat_id,
+                    ChatParticipantOrm.user_id == user_id
+                )
+                participant_result = await session.execute(participant_query)
+                if not participant_result.scalar_one_or_none():
+                    return None
             
             # Получаем информацию о чате
             chat_query = select(ChatOrm).where(ChatOrm.id == chat_id)
@@ -282,10 +285,15 @@ class ChatRepository:
             
             # Получаем информацию о собеседнике для приватного чата
             other_participant = None
-            for participant in participants:
-                if participant["user_id"] != user_id:
-                    other_participant = participant
-                    break
+            if user_id is not None:
+                for participant in participants:
+                    if participant["user_id"] != user_id:
+                        other_participant = participant
+                        break
+            else:
+                # Если user_id не указан, берём первого участника (для системных целей)
+                if participants:
+                    other_participant = participants[0]
             
             return {
                 "id": chat.id,
@@ -791,3 +799,14 @@ class MessageRepository:
                 result.setdefault(sender_id, []).append(msg_id)
             
             return result
+    
+    
+    @classmethod
+    async def get_chat_participant_ids(cls, chat_id: int) -> List[int]:
+        """Возвращает список ID участников чата без проверки прав"""
+        async with new_session() as session:
+            query = select(ChatParticipantOrm.user_id).where(
+                ChatParticipantOrm.chat_id == chat_id
+            )
+            result = await session.execute(query)
+            return list(result.scalars().all())
