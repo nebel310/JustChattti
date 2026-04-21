@@ -230,6 +230,12 @@ async def send_message(
             current_user.id
         )
         
+        chat_message = {
+            "type": "message",
+            "message": message
+        }
+        await manager.broadcast_to_chat(chat_message, chat_id)
+        
         # Отправка push-уведомления, если получатель офлайн и не замутил отправителя
         try:
             chat_detail = await ChatRepository.get_chat_detail(chat_id, current_user.id)
