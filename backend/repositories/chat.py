@@ -438,11 +438,14 @@ class MessageRepository:
             sender_username = None
             sender_avatar_url = None
             sender_metadata = None
+            sender_avatar_url = None
+            
             
             if sender_row:
                 sender_username = sender_row.username
                 sender_avatar_url = await cls._get_user_avatar_url(sender_row.avatar_id)
                 sender_metadata = sender_row.user_metadata
+                sender_avatar_id = sender_row.avatar_id
             
             # Получаем информацию о файле
             file_url = None
@@ -463,6 +466,7 @@ class MessageRepository:
                 "sender_id": message.sender_id,
                 "sender_username": sender_username,
                 "sender_avatar_url": sender_avatar_url,
+                "sender_avatar_id": sender_avatar_id,
                 "sender_metadata": sender_metadata,
                 "message_type": message.message_type,
                 "content": message.content,

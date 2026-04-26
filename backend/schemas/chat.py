@@ -154,6 +154,10 @@ class MessageResponse(BaseModel):
         None,
         example="http://minio:9000/images/uuid.jpg"
     )
+    sender_avatar_id: Optional[int] = Field(
+        None,
+        example=1
+    )
     message_type: str = Field(..., example="text")
     content: Optional[str] = Field(None, example="Привет!")
     file_id: Optional[int] = Field(None, example=5)
