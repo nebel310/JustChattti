@@ -1,5 +1,4 @@
-from datetime import datetime
-from datetime import timezone
+from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
 
 from sqlalchemy import select, update, delete, desc, func, and_, or_
@@ -8,8 +7,7 @@ from sqlalchemy.orm import selectinload
 from database import new_session
 from models.chat import (
     ChatOrm, ChatParticipantOrm, MessageOrm,
-    ChatType, MessageStatus, MessageType,
-    CallOrm, CallParticipantOrm
+    ChatType, MessageStatus
 )
 from models.auth import UserOrm
 from models.files import FileOrm

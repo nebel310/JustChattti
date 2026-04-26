@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Path
 from fastapi.responses import StreamingResponse
+from sqlalchemy import and_, select
 
 from repositories.files import FileRepository
 from schemas.files import (
@@ -7,8 +8,11 @@ from schemas.files import (
 )
 from schemas.base import ErrorResponse
 from models.auth import UserOrm
+from models.chat import MessageOrm, ChatParticipantOrm
 from utils.security import get_current_user
 from utils.minio_client import minio
+
+from database import new_session
 
 
 
@@ -129,9 +133,6 @@ async def download_file(
         # Проверяем права доступа
         if file_info["uploaded_by_id"] != current_user.id:
             # Проверяем, есть ли доступ через сообщения в общих чатах
-            from database import new_session
-            from sqlalchemy import select
-            from models.chat import MessageOrm
             
             async with new_session() as session:
                 # Ищем сообщения с этим файлом в чатах, где пользователь участник
@@ -142,13 +143,11 @@ async def download_file(
                 ).exists()
                 
                 # Получаем список чатов пользователя
-                from models.chat import ChatParticipantOrm
                 user_chats_query = select(ChatParticipantOrm.chat_id).where(
                     ChatParticipantOrm.user_id == current_user.id
                 )
                 
                 # Ищем сообщения в чатах пользователя с этим файлом
-                from sqlalchemy import and_
                 message_query = select(MessageOrm.id).where(
                     and_(
                         MessageOrm.file_id == file_id,

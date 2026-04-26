@@ -3,6 +3,9 @@ import logging
 
 from dotenv import load_dotenv
 
+import firebase_admin
+from firebase_admin import credentials
+
 
 
 
@@ -31,9 +34,6 @@ def init_firebase() -> bool:
         return False
 
     try:
-        import firebase_admin
-        from firebase_admin import credentials
-
         cred = credentials.Certificate(credentials_path)
         firebase_admin.initialize_app(cred)
         _firebase_initialized = True

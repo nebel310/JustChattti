@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Path, Body
@@ -10,10 +10,13 @@ from schemas.chat import (
     MessageCreate, MessageResponse, MessagesResponse,
     MarkAsReadRequest, CallCreate, CallResponse
 )
+from repositories.mute import MuteRepository
 from schemas.base import ErrorResponse, ValidationErrorResponse
 from utils.security import get_current_user
 from websocket.chat_manager import manager
 from utils.fcm_service import send_push_notification
+
+
 
 
 router = APIRouter(
@@ -241,8 +244,6 @@ async def send_message(
             chat_detail = await ChatRepository.get_chat_detail(chat_id, current_user.id)
             if chat_detail and chat_detail.get("other_participant"):
                 receiver_id = chat_detail["other_participant"]["user_id"]
-                from websocket.chat_manager import manager
-                from repositories.mute import MuteRepository
 
                 if receiver_id not in manager.active_connections:
                     is_muted = await MuteRepository.is_muted(receiver_id, current_user.id)
@@ -410,7 +411,6 @@ async def start_call(
     Придет пуш уведомление звонка, только если пользователь не замутил отправителя
     """
     try:
-        from datetime import datetime, timezone
         
         # Проверяем, что пользователь является участником чата
         chat = await ChatRepository.get_chat_detail(chat_id, current_user.id)
@@ -427,8 +427,6 @@ async def start_call(
         other_participant = chat.get("other_participant")
         if other_participant:
             receiver_id = other_participant["user_id"]
-            from websocket.chat_manager import manager
-            from repositories.mute import MuteRepository
 
             is_muted = await MuteRepository.is_muted(receiver_id, current_user.id)
             if not is_muted:

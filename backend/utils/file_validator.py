@@ -1,5 +1,9 @@
 import os
 import uuid
+import time
+import random
+import string
+
 from typing import List, Tuple
 from fastapi import UploadFile, HTTPException
 
@@ -84,11 +88,7 @@ class FileValidator:
         
         if use_uuid:
             return f"{uuid.uuid4()}{extension}"
-        else:
-            import time
-            import random
-            import string
-            
+        else:            
             timestamp = int(time.time())
             random_str = ''.join(
                 random.choices(string.ascii_lowercase + string.digits, k=8)

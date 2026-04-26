@@ -1,23 +1,17 @@
 import os
 
-from datetime import datetime
-from datetime import timedelta
-from datetime import timezone
+from datetime import datetime, timedelta, timezone
 
 from dotenv import load_dotenv
-from jose import jwt
-from jose import JWTError
+from jose import jwt, JWTError
 from passlib.context import CryptContext
-from sqlalchemy import delete
-from sqlalchemy import select
-from sqlalchemy import update
+from sqlalchemy import delete, select, update
 
 from database import new_session
-from models.auth import BlacklistedTokenOrm
-from models.auth import RefreshTokenOrm
-from models.auth import UserOrm
-from schemas.auth import SUserRegister
-from schemas.auth import SRefreshToken
+from models.auth import BlacklistedTokenOrm, RefreshTokenOrm, UserOrm
+from models.files import FileOrm
+from schemas.auth import SUserRegister, SRefreshToken
+from utils.minio_client import minio
 
 
 
@@ -267,9 +261,6 @@ class UserRepository:
     async def get_user_with_avatar_url(cls, user_id: int) -> dict | None:
         """Получает пользователя с URL аватарки."""
         async with new_session() as session:
-            from models.files import FileOrm
-            from utils.minio_client import minio
-
             query = select(
                 UserOrm.id,
                 UserOrm.username,

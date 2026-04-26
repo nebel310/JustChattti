@@ -1,25 +1,19 @@
-from fastapi import APIRouter
-from fastapi import Depends
-from fastapi import HTTPException
-from fastapi import Path
+from fastapi import APIRouter, Depends, HTTPException, Path
 
 from models.auth import UserOrm
 from repositories.auth import UserRepository
-from schemas.auth import LoginResponse
-from schemas.auth import LogoutResponse
-from schemas.auth import SRefreshToken
-from schemas.auth import RefreshResponse
-from schemas.auth import RegisterResponse
-from schemas.auth import SUser
-from schemas.auth import SPublicUser
-from schemas.auth import SUserStatus
-from schemas.auth import SUserUpdate
-from schemas.auth import SUserLogin
-from schemas.auth import SUserRegister
+from schemas.auth import (
+    LoginResponse, LogoutResponse, SRefreshToken,
+    RefreshResponse, RegisterResponse, SUser,
+    SPublicUser, SUserStatus, SUserUpdate,
+    SUserLogin, SUserRegister
+)
 from schemas.base import ErrorResponse, ValidationErrorResponse
-from utils.security import create_access_token
-from utils.security import get_current_user
-from utils.security import oauth2_scheme
+from utils.security import create_access_token, get_current_user, oauth2_scheme
+
+from database import new_session
+from models.files import FileOrm
+from sqlalchemy import select
 
 
 
@@ -105,11 +99,11 @@ async def login_user(login_data: SUserLogin):
     except HTTPException:
         raise
         
-    # except Exception as e:
-    #     raise HTTPException(
-    #         status_code=500,
-    #         detail="Внутренняя ошибка сервера"
-    #     )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
 
 
 @router.post(
@@ -233,10 +227,7 @@ async def update_user(
         # Проверяем, существует ли файл аватарки, если он указан
         if update_data.avatar_id is not None:
             # Исключительное говно по кодстайлу, но так реальлно проще в данном конкретном случае!
-            from database import new_session
-            from models.files import FileOrm
-            from sqlalchemy import select
-            
+                        
             async with new_session() as session:
                 query = select(FileOrm).where(FileOrm.id == update_data.avatar_id)
                 result = await session.execute(query)

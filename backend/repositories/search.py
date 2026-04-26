@@ -1,15 +1,13 @@
-from datetime import datetime
-from datetime import timezone
 from typing import List, Optional, Dict, Any
 
 from sqlalchemy import select, func, or_, and_, text, desc
-from sqlalchemy.orm import selectinload
 
 from database import new_session
 from models.auth import UserOrm
 from models.chat import MessageOrm, ChatParticipantOrm
 from models.files import FileOrm
 from utils.cursor import encode_cursor, decode_cursor
+from utils.minio_client import minio
 
 
 
@@ -128,7 +126,6 @@ class UserSearchRepository:
                 return None
             
             try:
-                from utils.minio_client import minio
                 return await minio.get_url(filename)
             except Exception:
                 return None
@@ -475,7 +472,6 @@ class MessageSearchRepository:
         session
     ) -> List[Dict[str, Any]]:
         """Конвертирует список объектов MessageOrm в список словарей с контекстными курсорами"""
-        from utils.cursor import encode_cursor
 
         messages_dicts = []
         for message in messages:
@@ -502,7 +498,6 @@ class MessageSearchRepository:
                 filename = file_result.scalar_one_or_none()
                 if filename:
                     try:
-                        from utils.minio_client import minio
                         file_url = await minio.get_url(filename)
                     except Exception:
                         pass
@@ -577,7 +572,6 @@ class MessageSearchRepository:
                 return None
             
             try:
-                from utils.minio_client import minio
                 return await minio.get_url(filename)
             except Exception:
                 return None

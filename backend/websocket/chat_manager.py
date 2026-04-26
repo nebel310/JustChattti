@@ -1,14 +1,14 @@
-import json
-from datetime import datetime
-from datetime import timezone
+import asyncio
+import logging
+from datetime import datetime, timezone
 from typing import Dict, Set, Optional, List
 
 from fastapi import WebSocket
 from fastapi.encoders import jsonable_encoder
-import asyncio
-import logging
 
-from repositories.chat import ChatRepository
+from repositories.chat import ChatRepository, MessageRepository
+from repositories.auth import UserRepository
+from schemas.chat import MessageCreate
 from utils.fcm_service import send_push_notification
 
 
@@ -64,7 +64,6 @@ class ConnectionManager:
     async def update_user_status(self, user_id: int, is_online: bool):
         """Обновляет статус пользователя в базе данных"""
         try:
-            from repositories.auth import UserRepository
             await UserRepository.update_user_status(user_id, is_online)
             logger.info(f"Статус пользователя {user_id} обновлён: {'онлайн' if is_online else 'оффлайн'}")
         except Exception as e:
@@ -165,9 +164,6 @@ class ConnectionManager:
             return
 
         try:
-            from repositories.chat import MessageRepository
-            from schemas.chat import MessageCreate
-
             logger.info(f"Получено сообщение от пользователя {user_id}: {data}")
 
             if data.get("message_type") == "voice":
@@ -242,7 +238,6 @@ class ConnectionManager:
             return
         
         try:
-            from repositories.chat import MessageRepository
             updated_ids = await MessageRepository.mark_as_delivered(message_ids, user_id, chat_id)
             if updated_ids:
                 await self.broadcast_to_chat({
@@ -266,7 +261,6 @@ class ConnectionManager:
             return
         
         try:
-            from repositories.chat import MessageRepository
             updated_map = await MessageRepository.mark_as_read(message_ids, user_id, chat_id)
             if updated_map:
                 for sender_id, msg_ids in updated_map.items():
@@ -299,7 +293,6 @@ class ConnectionManager:
     async def _get_chat_participants(chat_id: int) -> List[int]:
         """Возвращает список user_id участников чата"""
         try:
-            from repositories.chat import ChatRepository
             return await ChatRepository.get_chat_participant_ids(chat_id)
         except Exception as e:
             logger.error(f"Не удалось получить участников чата {chat_id}: {e}")
@@ -309,7 +302,6 @@ class ConnectionManager:
     async def _get_user_chat_ids(user_id: int) -> List[int]:
         """Возвращает список ID чатов, в которых состоит пользователь"""
         try:
-            from repositories.chat import ChatRepository
             chats = await ChatRepository.get_user_chats(user_id, limit=1000)  # предполагаем не более 1000 чатов
             return [c["id"] for c in chats]
         except Exception as e:

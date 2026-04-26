@@ -1,9 +1,7 @@
-from datetime import datetime
-from datetime import timezone
+from datetime import datetime, timezone
 from typing import List
 
-from sqlalchemy import select
-from sqlalchemy import update
+from sqlalchemy import select, update
 
 from database import new_session
 from models.fcm import UserFCMTokenOrm

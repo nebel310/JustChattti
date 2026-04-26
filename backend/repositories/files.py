@@ -1,8 +1,6 @@
-import os
-import uuid
 from typing import Dict, Any
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
 from database import new_session
