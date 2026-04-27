@@ -259,6 +259,9 @@ class ChatRepository:
             participants_result = await session.execute(participants_query)
             participants_rows = participants_result.all()
             
+            # ID всех участников (для participant_ids)
+            participant_ids = [row.user_id for row in participants_rows]
+            
             # Получаем информацию о пользователях-участниках
             participants = []
             for participant_row in participants_rows:
@@ -281,7 +284,30 @@ class ChatRepository:
                         "last_read_at": participant_row.last_read_at
                     })
             
-            # Получаем информацию о собеседнике для приватного чата
+            # Получаем последнее сообщение в чате
+            last_message = None
+            last_message_query = select(MessageOrm).where(
+                MessageOrm.chat_id == chat_id
+            ).order_by(desc(MessageOrm.created_at)).limit(1)
+            last_message_result = await session.execute(last_message_query)
+            last_msg = last_message_result.scalar_one_or_none()
+            
+            if last_msg:
+                # Имя отправителя
+                sender_query = select(UserOrm.username).where(UserOrm.id == last_msg.sender_id)
+                sender_result = await session.execute(sender_query)
+                sender_username = sender_result.scalar_one_or_none()
+                
+                last_message = {
+                    "id": last_msg.id,
+                    "content": last_msg.content[:100] if last_msg.content else None,
+                    "message_type": last_msg.message_type,
+                    "sender_id": last_msg.sender_id,
+                    "sender_username": sender_username,
+                    "created_at": last_msg.created_at
+                }
+            
+            # Информация о собеседнике для приватного чата
             other_participant = None
             if user_id is not None:
                 for participant in participants:
@@ -303,7 +329,9 @@ class ChatRepository:
                 "created_at": chat.created_at,
                 "updated_at": chat.updated_at,
                 "participants": participants,
-                "other_participant": other_participant
+                "other_participant": other_participant,
+                "participant_ids": participant_ids,      # <-- было пропущено
+                "last_message": last_message             # <-- было пропущено
             }
     
     
