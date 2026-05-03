@@ -212,10 +212,12 @@ class ConnectionManager:
             }
             await self.broadcast_to_chat(chat_message, data["chat_id"])
 
+            # Подтверждение отправителю — теперь включает client_message_id
             await self.send_to_user({
                 "type": "message_sent",
                 "message_id": message["id"],
-                "status": "sent"
+                "status": "sent",
+                "client_message_id": data.get("client_message_id")
             }, user_id)
 
         except ValueError as e:
