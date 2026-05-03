@@ -843,3 +843,66 @@ class MessageRepository:
                 result.setdefault(sender_id, []).append(msg_id)
             
             return result
+    
+    
+    @classmethod
+    async def get_message_with_context(cls, message_id: int, user_id: int) -> Optional[Dict[str, Any]]:
+        """
+        Получает сообщение с данными о соседних сообщениях в чате (контекстные курсоры).
+        Проверяет, что пользователь является участником чата.
+        Возвращает None, если сообщение не найдено или нет доступа.
+        """
+        async with new_session() as session:
+            # Получаем сообщение
+            msg_query = select(MessageOrm).where(MessageOrm.id == message_id)
+            msg_result = await session.execute(msg_query)
+            message = msg_result.scalar_one_or_none()
+            if not message:
+                return None
+
+            # Проверяем, является ли пользователь участником чата
+            participant_query = select(ChatParticipantOrm).where(
+                ChatParticipantOrm.chat_id == message.chat_id,
+                ChatParticipantOrm.user_id == user_id
+            )
+            participant_result = await session.execute(participant_query)
+            if not participant_result.scalar_one_or_none():
+                return None
+
+            # Базовая информация о сообщении
+            msg_dict = await cls._message_to_dict(message)
+
+            # Предыдущее сообщение (более старое)
+            prev_query = select(MessageOrm).where(
+                MessageOrm.chat_id == message.chat_id,
+                or_(
+                    MessageOrm.created_at < message.created_at,
+                    and_(
+                        MessageOrm.created_at == message.created_at,
+                        MessageOrm.id < message.id
+                    )
+                )
+            ).order_by(desc(MessageOrm.created_at), desc(MessageOrm.id)).limit(1)
+            prev_result = await session.execute(prev_query)
+            prev_msg = prev_result.scalar_one_or_none()
+            context_prev_cursor = encode_cursor(prev_msg.created_at, prev_msg.id) if prev_msg else None
+
+            # Следующее сообщение (более новое)
+            next_query = select(MessageOrm).where(
+                MessageOrm.chat_id == message.chat_id,
+                or_(
+                    MessageOrm.created_at > message.created_at,
+                    and_(
+                        MessageOrm.created_at == message.created_at,
+                        MessageOrm.id > message.id
+                    )
+                )
+            ).order_by(MessageOrm.created_at.asc(), MessageOrm.id.asc()).limit(1)
+            next_result = await session.execute(next_query)
+            next_msg = next_result.scalar_one_or_none()
+            context_next_cursor = encode_cursor(next_msg.created_at, next_msg.id) if next_msg else None
+
+            # Добавляем курсоры в словарь
+            msg_dict["context_prev_cursor"] = context_prev_cursor
+            msg_dict["context_next_cursor"] = context_next_cursor
+            return msg_dict

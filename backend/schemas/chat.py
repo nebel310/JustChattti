@@ -370,3 +370,15 @@ class ValidationErrorResponse(BaseModel):
             }
         }
     )
+
+
+class MessageWithContextResponse(MessageResponse):
+    """Ответ с информацией о сообщении и курсорами соседних сообщений в чате"""
+    context_prev_cursor: Optional[str] = Field(
+        None,
+        description="Курсор для загрузки более старых сообщений относительно этого"
+    )
+    context_next_cursor: Optional[str] = Field(
+        None,
+        description="Курсор для загрузки более новых сообщений относительно этого"
+    )

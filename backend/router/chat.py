@@ -8,7 +8,8 @@ from repositories.chat import ChatRepository, MessageRepository
 from schemas.chat import (
     ChatCreate, ChatResponse, ChatDetailResponse,
     MessageCreate, MessageResponse, MessagesResponse,
-    MarkAsReadRequest, CallCreate, CallResponse
+    MarkAsReadRequest, CallCreate, CallResponse,
+    MessageWithContextResponse
 )
 from repositories.mute import MuteRepository
 from schemas.base import ErrorResponse, ValidationErrorResponse
@@ -452,6 +453,37 @@ async def start_call(
             started_at=started_at,
             ended_at=None
         )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get(
+    "/messages/{message_id}",
+    response_model=MessageWithContextResponse,
+    responses={
+        401: {"model": ErrorResponse, "description": "Не авторизован"},
+        403: {"model": ErrorResponse, "description": "Нет доступа к сообщению"},
+        404: {"model": ErrorResponse, "description": "Сообщение не найдено"},
+        500: {"model": ErrorResponse, "description": "Внутренняя ошибка сервера"}
+    }
+)
+async def get_message_by_id(
+    message_id: int = Path(..., description="ID сообщения"),
+    current_user: UserOrm = Depends(get_current_user)
+):
+    """
+    Получить сообщение по ID с контекстными курсорами для навигации.
+    
+    Возвращает полную информацию о сообщении и курсоры на соседние сообщения
+    в том же чате. Необходим для перехода к reply-сообщениям.
+    """
+    try:
+        msg = await MessageRepository.get_message_with_context(message_id, current_user.id)
+        if msg is None:
+            raise HTTPException(status_code=404, detail="Сообщение не найдено или нет доступа")
+        return msg
     except HTTPException:
         raise
     except Exception as e:

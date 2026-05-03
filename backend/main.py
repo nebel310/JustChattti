@@ -91,6 +91,7 @@ def custom_openapi():
         ("/chats/{chat_id}/messages", "post"): [{"Bearer": []}],
         ("/chats/messages/{message_id}", "patch"): [{"Bearer": []}],
         ("/chats/messages/{message_id}", "delete"): [{"Bearer": []}],
+        ("/chats/messages/{message_id}", "get"): [{"Bearer": []}],
         ("/chats/messages/mark-read", "post"): [{"Bearer": []}],
         ("/chats/{chat_id}/calls", "post"): [{"Bearer": []}],
         ("/users/me/muted/{user_id}", "post"): [{"Bearer": []}],
