@@ -1,5 +1,10 @@
 backend:
 
-
 1. Создать rate limiter в redis
 2. Создать звонки (на данный момент звонки - это заглушки)
+
+Срочно сделать:
+1. Разобраться с этой ошибкой
+ERROR:websocket.chat_manager:Не удалось получить участников чата 2: type object 'ChatRepository' has no attribute 'get_chat_participant_ids'
+
+2. Добавить строку для индефикации отправленного сообщения и пересылки этой строки в message_sent сообщения

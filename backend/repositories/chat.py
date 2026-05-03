@@ -367,6 +367,17 @@ class ChatRepository:
             await session.commit()
             
             return True
+    
+
+    @classmethod
+    async def get_chat_participant_ids(cls, chat_id: int) -> List[int]:
+        """Возвращает список ID участников чата без проверки прав"""
+        async with new_session() as session:
+            query = select(ChatParticipantOrm.user_id).where(
+                ChatParticipantOrm.chat_id == chat_id
+            )
+            result = await session.execute(query)
+            return list(result.scalars().all())
 
 
 
@@ -829,14 +840,3 @@ class MessageRepository:
                 result.setdefault(sender_id, []).append(msg_id)
             
             return result
-    
-    
-    @classmethod
-    async def get_chat_participant_ids(cls, chat_id: int) -> List[int]:
-        """Возвращает список ID участников чата без проверки прав"""
-        async with new_session() as session:
-            query = select(ChatParticipantOrm.user_id).where(
-                ChatParticipantOrm.chat_id == chat_id
-            )
-            result = await session.execute(query)
-            return list(result.scalars().all())
