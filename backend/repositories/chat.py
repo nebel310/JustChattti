@@ -442,7 +442,10 @@ class MessageRepository:
             await session.commit()
             
             # Получаем полную информацию о сообщении
-            return await cls._get_message_by_id(message.id)
+            message_dict = await cls._message_to_dict(message)
+            # Добавляем клиентский идентификатор, если он был передан
+            message_dict["client_message_id"] = message_data.client_message_id
+            return message_dict
     
     
     @classmethod

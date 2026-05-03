@@ -130,6 +130,10 @@ class MessageBase(BaseModel):
 class MessageCreate(MessageBase):
     """Схема для создания сообщения"""
     chat_id: int = Field(..., example=1, description="ID чата")
+    client_message_id: Optional[str] = Field(
+        None,
+        description="Произвольная строка клиента для идентификации сообщения"
+    )
     
     model_config = ConfigDict(
         json_schema_extra={
@@ -138,7 +142,8 @@ class MessageCreate(MessageBase):
                 "content": "Привет!",
                 "message_type": "text",
                 "file_id": None,
-                "reply_to_id": None
+                "reply_to_id": None,
+                "client_message_id": "my-temp-id-123"
             }
         }
     )
@@ -150,25 +155,20 @@ class MessageResponse(BaseModel):
     chat_id: int = Field(..., example=1)
     sender_id: Optional[int] = Field(..., example=1)
     sender_username: Optional[str] = Field(..., example="user1")
-    sender_avatar_url: Optional[str] = Field(
-        None,
-        example="http://minio:9000/images/uuid.jpg"
-    )
-    sender_avatar_id: Optional[int] = Field(
-        None,
-        example=1
-    )
+    sender_avatar_url: Optional[str] = Field(None, example="http://minio:9000/images/uuid.jpg")
+    sender_avatar_id: Optional[int] = Field(None, example=1)
     message_type: str = Field(..., example="text")
     content: Optional[str] = Field(None, example="Привет!")
     file_id: Optional[int] = Field(None, example=5)
-    file_url: Optional[str] = Field(
-        None,
-        example="http://minio:9000/images/uuid.jpg"
-    )
+    file_url: Optional[str] = Field(None, example="http://minio:9000/images/uuid.jpg")
     reply_to_id: Optional[int] = Field(None, example=10)
     status: str = Field(..., example="sent")
     edited: bool = Field(..., example=False)
     metadata: Optional[Dict[str, Any]] = Field(None, example={"duration": 30})
+    client_message_id: Optional[str] = Field(
+        None,
+        description="Клиентский идентификатор, переданный при отправке"
+    )
     created_at: datetime = Field(..., example="2024-01-01T12:00:00Z")
     updated_at: datetime = Field(..., example="2024-01-01T12:00:00Z")
     
