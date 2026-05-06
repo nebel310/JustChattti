@@ -146,17 +146,11 @@ class MessageSearchRepository:
         cursor: Optional[str] = None,
         direction: str = "before"
     ) -> Dict[str, Any]:
-        """
-        Полнотекстовый поиск сообщений во всех чатах пользователя с keyset-пагинацией.
-        direction: "before" (более старые) или "after" (более новые относительно курсора).
-        """
         async with new_session() as session:
-            # Чаты пользователя
             user_chats_subquery = select(ChatParticipantOrm.chat_id).where(
                 ChatParticipantOrm.user_id == current_user_id
             ).subquery()
 
-            # Базовый запрос с полнотекстовым условием (simple для универсальности)
             tsquery = func.plainto_tsquery(text("'simple'"), text_query)
             base_condition = and_(
                 MessageOrm.chat_id.in_(user_chats_subquery),
@@ -165,13 +159,11 @@ class MessageSearchRepository:
 
             query = select(MessageOrm).where(base_condition)
 
-            # Разбор курсора
             cursor_created_at = None
             cursor_id = None
             if cursor:
                 cursor_created_at, cursor_id = decode_cursor(cursor)
 
-            # Направление пагинации
             if direction == "before":
                 order_by = [MessageOrm.created_at.desc(), MessageOrm.id.desc()]
                 if cursor_created_at is not None and cursor_id is not None:
@@ -202,8 +194,6 @@ class MessageSearchRepository:
                     query = query.where(MessageOrm.created_at > cursor_created_at)
 
             query = query.order_by(*order_by)
-
-            # Запрашиваем на один больше для определения has_more и курсоров
             messages_query = query.limit(limit + 1)
             result = await session.execute(messages_query)
             messages = result.scalars().all()
@@ -213,22 +203,20 @@ class MessageSearchRepository:
             prev_cursor = None
 
             if has_more:
-                extra = messages[limit]  # первое сообщение за границей
-                if direction == "before":
-                    next_cursor = encode_cursor(extra.created_at, extra.id)
-                else:
-                    prev_cursor = encode_cursor(extra.created_at, extra.id)
                 messages = messages[:limit]
+                last_visible = messages[-1]
+                if direction == "before":
+                    next_cursor = encode_cursor(last_visible.created_at, last_visible.id)
+                else:
+                    prev_cursor = encode_cursor(last_visible.created_at, last_visible.id)
             else:
                 messages = messages[:limit]
 
-            # Преобразуем сообщения в словари (порядок: для "before" делаем reversed, для "after" оставляем прямой)
             if direction == "before":
                 messages_dict = await cls._messages_to_dicts(list(reversed(messages)), session)
             else:
                 messages_dict = await cls._messages_to_dicts(messages, session)
 
-            # Для простоты total считаем только на первой странице без курсора
             total = 0
             if cursor is None:
                 count_query = select(func.count()).select_from(MessageOrm).where(base_condition)
@@ -243,7 +231,7 @@ class MessageSearchRepository:
                 "next_cursor": next_cursor,
                 "prev_cursor": prev_cursor,
             }
-    
+                
     
     @classmethod
     async def search_messages_in_chat(
@@ -255,11 +243,7 @@ class MessageSearchRepository:
         cursor: Optional[str] = None,
         direction: str = "before"
     ) -> Dict[str, Any]:
-        """
-        Полнотекстовый поиск сообщений в конкретном чате с keyset-пагинацией.
-        """
         async with new_session() as session:
-            # Проверка участия в чате
             participant_query = select(ChatParticipantOrm).where(
                 ChatParticipantOrm.chat_id == chat_id,
                 ChatParticipantOrm.user_id == current_user_id
@@ -275,13 +259,11 @@ class MessageSearchRepository:
 
             query = select(MessageOrm).where(base_condition)
 
-            # Разбор курсора
             cursor_created_at = None
             cursor_id = None
             if cursor:
                 cursor_created_at, cursor_id = decode_cursor(cursor)
 
-            # Направление пагинации
             if direction == "before":
                 order_by = [MessageOrm.created_at.desc(), MessageOrm.id.desc()]
                 if cursor_created_at is not None and cursor_id is not None:
@@ -296,7 +278,7 @@ class MessageSearchRepository:
                     )
                 elif cursor_created_at is not None:
                     query = query.where(MessageOrm.created_at < cursor_created_at)
-            else:  # "after"
+            else:
                 order_by = [MessageOrm.created_at.asc(), MessageOrm.id.asc()]
                 if cursor_created_at is not None and cursor_id is not None:
                     query = query.where(
@@ -312,7 +294,6 @@ class MessageSearchRepository:
                     query = query.where(MessageOrm.created_at > cursor_created_at)
 
             query = query.order_by(*order_by)
-
             messages_query = query.limit(limit + 1)
             result = await session.execute(messages_query)
             messages = result.scalars().all()
@@ -322,12 +303,12 @@ class MessageSearchRepository:
             prev_cursor = None
 
             if has_more:
-                extra = messages[limit]
-                if direction == "before":
-                    next_cursor = encode_cursor(extra.created_at, extra.id)
-                else:
-                    prev_cursor = encode_cursor(extra.created_at, extra.id)
                 messages = messages[:limit]
+                last_visible = messages[-1]
+                if direction == "before":
+                    next_cursor = encode_cursor(last_visible.created_at, last_visible.id)
+                else:
+                    prev_cursor = encode_cursor(last_visible.created_at, last_visible.id)
             else:
                 messages = messages[:limit]
 
@@ -349,8 +330,9 @@ class MessageSearchRepository:
                 "has_more": has_more,
                 "next_cursor": next_cursor,
                 "prev_cursor": prev_cursor,
-            }    
-    
+            }
+            
+                
     @classmethod
     async def search_messages_by_username(
         cls,
@@ -360,11 +342,7 @@ class MessageSearchRepository:
         cursor: Optional[str] = None,
         direction: str = "before"
     ) -> Dict[str, Any]:
-        """
-        Поиск сообщений от пользователей с указанным username (ILIKE) с keyset-пагинацией.
-        """
         async with new_session() as session:
-            # Находим ID пользователей
             user_ids_query = select(UserOrm.id).where(
                 UserOrm.username.ilike(f"%{username_query}%")
             )
@@ -436,12 +414,12 @@ class MessageSearchRepository:
             prev_cursor = None
 
             if has_more:
-                extra = messages[limit]
-                if direction == "before":
-                    next_cursor = encode_cursor(extra.created_at, extra.id)
-                else:
-                    prev_cursor = encode_cursor(extra.created_at, extra.id)
                 messages = messages[:limit]
+                last_visible = messages[-1]
+                if direction == "before":
+                    next_cursor = encode_cursor(last_visible.created_at, last_visible.id)
+                else:
+                    prev_cursor = encode_cursor(last_visible.created_at, last_visible.id)
             else:
                 messages = messages[:limit]
 
@@ -463,19 +441,18 @@ class MessageSearchRepository:
                 "has_more": has_more,
                 "next_cursor": next_cursor,
                 "prev_cursor": prev_cursor,
-            }    
-    
+            }
+
+
     @classmethod
     async def _messages_to_dicts(
         cls,
         messages: List[MessageOrm],
         session
     ) -> List[Dict[str, Any]]:
-        """Конвертирует список объектов MessageOrm в список словарей с контекстными курсорами"""
-
+        """Конвертирует список объектов MessageOrm в список словарей с контекстными курсорами (указывающими на само сообщение)"""
         messages_dicts = []
         for message in messages:
-            # отправитель
             sender_query = select(
                 UserOrm.username, UserOrm.avatar_id,
                 UserOrm.user_metadata
@@ -490,7 +467,6 @@ class MessageSearchRepository:
                 sender_avatar_url = await cls._get_user_avatar_url(sender_row.avatar_id)
                 sender_metadata = sender_row.user_metadata
 
-            # файл
             file_url = None
             if message.file_id:
                 file_query = select(FileOrm.filename).where(FileOrm.id == message.file_id)
@@ -502,36 +478,8 @@ class MessageSearchRepository:
                     except Exception:
                         pass
 
-            # Контекстные курсоры (предыдущее и следующее в чате)
-            # Предыдущее (более старое)
-            prev_query = select(MessageOrm).where(
-                MessageOrm.chat_id == message.chat_id,
-                or_(
-                    MessageOrm.created_at < message.created_at,
-                    and_(
-                        MessageOrm.created_at == message.created_at,
-                        MessageOrm.id < message.id
-                    )
-                )
-            ).order_by(desc(MessageOrm.created_at), desc(MessageOrm.id)).limit(1)
-            prev_result = await session.execute(prev_query)
-            prev_msg = prev_result.scalar_one_or_none()
-            context_prev_cursor = encode_cursor(prev_msg.created_at, prev_msg.id) if prev_msg else None
-
-            # Следующее (более новое)
-            next_query = select(MessageOrm).where(
-                MessageOrm.chat_id == message.chat_id,
-                or_(
-                    MessageOrm.created_at > message.created_at,
-                    and_(
-                        MessageOrm.created_at == message.created_at,
-                        MessageOrm.id > message.id
-                    )
-                )
-            ).order_by(MessageOrm.created_at.asc(), MessageOrm.id.asc()).limit(1)
-            next_result = await session.execute(next_query)
-            next_msg = next_result.scalar_one_or_none()
-            context_next_cursor = encode_cursor(next_msg.created_at, next_msg.id) if next_msg else None
+            # Контекстный курсор указывает на само сообщение
+            context_cursor = encode_cursor(message.created_at, message.id)
 
             message_dict = {
                 "id": message.id,
@@ -550,12 +498,12 @@ class MessageSearchRepository:
                 "metadata": message.message_metadata,
                 "created_at": message.created_at,
                 "updated_at": message.updated_at,
-                "context_prev_cursor": context_prev_cursor,
-                "context_next_cursor": context_next_cursor,
+                "context_prev_cursor": context_cursor,
+                "context_next_cursor": context_cursor,
             }
             messages_dicts.append(message_dict)
         return messages_dicts
-    
+        
     
     @classmethod
     async def _get_user_avatar_url(cls, avatar_id: Optional[int]) -> Optional[str]:
@@ -576,6 +524,7 @@ class MessageSearchRepository:
             except Exception:
                 return None
             
+            
     @classmethod
     async def search_messages_by_sender(
         cls,
@@ -586,10 +535,6 @@ class MessageSearchRepository:
         cursor: Optional[str] = None,
         direction: str = "before"
     ) -> Dict[str, Any]:
-        """
-        Поиск сообщений от конкретного отправителя в чатах текущего пользователя.
-        Поддерживает полнотекстовый поиск по содержимому (если указан text_query).
-        """
         async with new_session() as session:
             user_chats_subquery = select(ChatParticipantOrm.chat_id).where(
                 ChatParticipantOrm.user_id == current_user_id
@@ -651,13 +596,14 @@ class MessageSearchRepository:
             has_more = len(messages) > limit
             next_cursor = None
             prev_cursor = None
+
             if has_more:
-                extra = messages[limit]
-                if direction == "before":
-                    next_cursor = encode_cursor(extra.created_at, extra.id)
-                else:
-                    prev_cursor = encode_cursor(extra.created_at, extra.id)
                 messages = messages[:limit]
+                last_visible = messages[-1]
+                if direction == "before":
+                    next_cursor = encode_cursor(last_visible.created_at, last_visible.id)
+                else:
+                    prev_cursor = encode_cursor(last_visible.created_at, last_visible.id)
             else:
                 messages = messages[:limit]
 

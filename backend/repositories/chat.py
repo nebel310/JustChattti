@@ -570,9 +570,7 @@ class MessageRepository:
                 cursor_created_at = before
                 cursor_id = None
 
-            # Определяем порядок сортировки и условие в зависимости от direction
             if direction == "before":
-                # Старые сообщения: сортировка DESC, условие <
                 order_by = [desc(MessageOrm.created_at), desc(MessageOrm.id)]
                 if cursor_created_at is not None and cursor_id is not None:
                     query = query.where(
@@ -587,7 +585,6 @@ class MessageRepository:
                 elif cursor_created_at is not None:
                     query = query.where(MessageOrm.created_at < cursor_created_at)
             else:  # direction == "after"
-                # Новые сообщения: сортировка ASC, условие >
                 order_by = [MessageOrm.created_at.asc(), MessageOrm.id.asc()]
                 if cursor_created_at is not None and cursor_id is not None:
                     query = query.where(
@@ -603,7 +600,7 @@ class MessageRepository:
                     query = query.where(MessageOrm.created_at > cursor_created_at)
 
             query = query.order_by(*order_by)
-            messages_query = query.limit(limit + 1)
+            messages_query = query.limit(limit + 1)  # берём на один больше, чтобы понять, есть ли ещё
             result = await session.execute(messages_query)
             messages = result.scalars().all()
 
@@ -612,25 +609,24 @@ class MessageRepository:
             prev_cursor = None
 
             if has_more:
-                extra = messages[limit]  # первое за пределами limit
-                if direction == "before":
-                    next_cursor = encode_cursor(extra.created_at, extra.id)
-                else:
-                    prev_cursor = encode_cursor(extra.created_at, extra.id)
                 messages = messages[:limit]
+                last_visible = messages[-1]  # последний элемент текущей страницы
+                if direction == "before":
+                    # next_cursor указывает на самое старое из выданных (последнее в DESC)
+                    next_cursor = encode_cursor(last_visible.created_at, last_visible.id)
+                else:
+                    prev_cursor = encode_cursor(last_visible.created_at, last_visible.id)
             else:
                 messages = messages[:limit]
 
-            # Для "before" возвращаем сообщения в прямом порядке (старые → новые)
+            # Для "before" возвращаем в прямом хронологическом порядке (старые → новые)
             # Для "after" они уже в прямом порядке
             if direction == "before":
                 messages_dict = [await cls._message_to_dict(msg) for msg in reversed(messages)]
             else:
                 messages_dict = [await cls._message_to_dict(msg) for msg in messages]
-                # prev_cursor установлен, next_cursor = None (вверх от after не идём)
                 next_cursor = None
 
-            # Помечаем прочитанными только при загрузке старых сообщений?
             if direction == "before":
                 await cls._mark_messages_as_read(chat_id, user_id, messages, session)
 
@@ -848,19 +844,17 @@ class MessageRepository:
     @classmethod
     async def get_message_with_context(cls, message_id: int, user_id: int) -> Optional[Dict[str, Any]]:
         """
-        Получает сообщение с данными о соседних сообщениях в чате (контекстные курсоры).
-        Проверяет, что пользователь является участником чата.
-        Возвращает None, если сообщение не найдено или нет доступа.
+        Получает сообщение с курсорами для навигации.
+        Возвращает context_prev_cursor и context_next_cursor, оба указывают на само это сообщение.
+        Клиент использует их с direction=before/after для загрузки окрестностей.
         """
         async with new_session() as session:
-            # Получаем сообщение
             msg_query = select(MessageOrm).where(MessageOrm.id == message_id)
             msg_result = await session.execute(msg_query)
             message = msg_result.scalar_one_or_none()
             if not message:
                 return None
 
-            # Проверяем, является ли пользователь участником чата
             participant_query = select(ChatParticipantOrm).where(
                 ChatParticipantOrm.chat_id == message.chat_id,
                 ChatParticipantOrm.user_id == user_id
@@ -869,40 +863,8 @@ class MessageRepository:
             if not participant_result.scalar_one_or_none():
                 return None
 
-            # Базовая информация о сообщении
             msg_dict = await cls._message_to_dict(message)
-
-            # Предыдущее сообщение (более старое)
-            prev_query = select(MessageOrm).where(
-                MessageOrm.chat_id == message.chat_id,
-                or_(
-                    MessageOrm.created_at < message.created_at,
-                    and_(
-                        MessageOrm.created_at == message.created_at,
-                        MessageOrm.id < message.id
-                    )
-                )
-            ).order_by(desc(MessageOrm.created_at), desc(MessageOrm.id)).limit(1)
-            prev_result = await session.execute(prev_query)
-            prev_msg = prev_result.scalar_one_or_none()
-            context_prev_cursor = encode_cursor(prev_msg.created_at, prev_msg.id) if prev_msg else None
-
-            # Следующее сообщение (более новое)
-            next_query = select(MessageOrm).where(
-                MessageOrm.chat_id == message.chat_id,
-                or_(
-                    MessageOrm.created_at > message.created_at,
-                    and_(
-                        MessageOrm.created_at == message.created_at,
-                        MessageOrm.id > message.id
-                    )
-                )
-            ).order_by(MessageOrm.created_at.asc(), MessageOrm.id.asc()).limit(1)
-            next_result = await session.execute(next_query)
-            next_msg = next_result.scalar_one_or_none()
-            context_next_cursor = encode_cursor(next_msg.created_at, next_msg.id) if next_msg else None
-
-            # Добавляем курсоры в словарь
-            msg_dict["context_prev_cursor"] = context_prev_cursor
-            msg_dict["context_next_cursor"] = context_next_cursor
+            context_cursor = encode_cursor(message.created_at, message.id)
+            msg_dict["context_prev_cursor"] = context_cursor
+            msg_dict["context_next_cursor"] = context_cursor
             return msg_dict
