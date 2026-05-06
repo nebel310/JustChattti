@@ -27,7 +27,8 @@
   "message_type": "text",
   "file_id": null,
   "reply_to_id": null,
-  "metadata": null
+  "metadata": null,
+  "client_message_id": "my-unique-id-123"
 }
 ```
 - `chat_id` (int) — обязательное поле.
@@ -36,6 +37,7 @@
 - `file_id` (int | null) — ID загруженного файла, если сообщение содержит файл.
 - `reply_to_id` (int | null) — ID сообщения, на которое отвечает данное.
 - `metadata` (object | null) — дополнительные данные. Для `message_type: "voice"` обязательно поле `duration` (число, длительность в секундах).
+- `client_message_id` (string | null) — произвольная строка для идентификации сообщения на клиенте (будет возвращена в `message_sent`).
 
 ### `typing`
 Индикатор набора текста.
@@ -119,6 +121,7 @@
     "sender_id": 2,
     "sender_username": "user2",
     "sender_avatar_url": "http://{IP адрес сервера}:9000/files/uuid.jpg",
+    "sender_avatar_id": null,
     "sender_metadata": null,
     "message_type": "text",
     "content": "Привет!",
@@ -128,6 +131,7 @@
     "status": "sent",
     "edited": false,
     "metadata": null,
+    "client_message_id": "my-unique-id-123",
     "created_at": "2024-01-01T12:00:00Z",
     "updated_at": "2024-01-01T12:00:00Z"
   }
@@ -135,8 +139,10 @@
 ```
 - `status` — одно из: `"sent"`, `"delivered"`, `"read"`.
 - `sender_avatar_url` и `file_url` — строки или `null`.
+- `sender_avatar_id` — ID аватара отправителя или `null`.
 - `sender_metadata` — объект с дополнительной информацией о пользователе или `null`.
 - `metadata` — объект с метаданными сообщения (например, `{"duration": 30.5}`) или `null`.
+- `client_message_id` — строка, переданная клиентом при отправке, или `null`.
 
 ### `message_sent`
 Подтверждение успешной отправки сообщения.
@@ -145,9 +151,11 @@
 {
   "type": "message_sent",
   "message_id": 100,
-  "status": "sent"
+  "status": "sent",
+  "client_message_id": "my-unique-id-123"
 }
 ```
+- `client_message_id` — значение, полученное от клиента при отправке, или `null`.
 
 ### `message_edited`
 Сообщение было отредактировано.
@@ -161,6 +169,7 @@
     "sender_id": 2,
     "sender_username": "user2",
     "sender_avatar_url": "http://minio:9000/files/uuid.jpg",
+    "sender_avatar_id": null,
     "sender_metadata": null,
     "message_type": "text",
     "content": "Новый текст сообщения",
@@ -170,6 +179,7 @@
     "status": "sent",
     "edited": true,
     "metadata": null,
+    "client_message_id": null,
     "created_at": "2024-01-01T12:00:00Z",
     "updated_at": "2024-01-01T12:05:00Z"
   }
