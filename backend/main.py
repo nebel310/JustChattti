@@ -73,6 +73,7 @@ def custom_openapi():
     
     secured_paths = {
         ("/auth/me", "get"): [{"Bearer": []}],
+        ("/auth/users/me/storage", "get"): [{"Bearer": []}],
         ("/auth/logout", "post"): [{"Bearer": []}],
         ("/auth/user-update", "patch"): [{"Bearer": []}],
         ("/auth/users/batch", "get"): [{"Bearer": []}],
@@ -91,6 +92,8 @@ def custom_openapi():
         ("/chats/{chat_id}/messages", "get"): [{"Bearer": []}],
         ("/chats/{chat_id}/messages", "post"): [{"Bearer": []}],
         ("/chats/messages/{message_id}", "patch"): [{"Bearer": []}],
+        ("/chats/messages/batch", "delete"): [{"Bearer": []}],
+        ("/chats/chats/messages/files", "delete"): [{"Bearer": []}],
         ("/chats/messages/{message_id}", "delete"): [{"Bearer": []}],
         ("/chats/messages/{message_id}", "get"): [{"Bearer": []}],
         ("/chats/messages/mark-read", "post"): [{"Bearer": []}],
