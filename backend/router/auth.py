@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Path
+from fastapi import APIRouter, Depends, HTTPException, Path, Query
 
 from models.auth import UserOrm
 from repositories.auth import UserRepository
@@ -301,6 +301,26 @@ async def get_user_by_id(
             status_code=500,
             detail=str(e)
         )
+
+
+@router.get(
+    "/users/batch",
+    response_model=list[SPublicUser],
+    responses={
+        401: {"model": ErrorResponse, "description": "Не авторизован"},
+        500: {"model": ErrorResponse}
+    }
+)
+async def get_users_by_ids(
+    ids: list[int] = Query(..., description="Список ID пользователей", min_length=1),
+    current_user: UserOrm = Depends(get_current_user)
+):
+    """Получение публичной информации о нескольких пользователях по списку ID."""
+    try:
+        users = await UserRepository.get_users_by_ids(ids)
+        return [SPublicUser.model_validate(u) for u in users]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get(
