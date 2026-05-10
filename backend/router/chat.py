@@ -9,7 +9,7 @@ from schemas.chat import (
     ChatCreate, ChatResponse, ChatDetailResponse,
     MessageCreate, MessageResponse, MessagesResponse,
     MarkAsReadRequest, CallCreate, CallResponse,
-    MessageWithContextResponse
+    MessageWithContextResponse, BatchDeleteResponse
 )
 from repositories.mute import MuteRepository
 from schemas.base import ErrorResponse, ValidationErrorResponse
@@ -355,6 +355,42 @@ async def delete_message(
         return {"success": True}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete(
+    "/messages/batch",
+    response_model=BatchDeleteResponse,
+    responses={
+        401: {"model": ErrorResponse, "description": "Не авторизован"},
+        404: {"model": ErrorResponse, "description": "Нет сообщений для удаления"},
+        500: {"model": ErrorResponse, "description": "Внутренняя ошибка сервера"}
+    }
+)
+async def delete_messages_batch(
+    ids: list[int] = Query(..., min_length=1, description="ID сообщений для удаления"),
+    current_user: UserOrm = Depends(get_current_user)
+):
+    """
+    Удаляет несколько сообщений пользователя. Автор может удалить любое своё сообщение.
+    Файлы, прикреплённые к удаляемым сообщениям, также удаляются из хранилища, если они
+    не используются в других сообщениях.
+    """
+    try:
+        result = await MessageRepository.delete_messages_batch(ids, current_user.id)
+        if not result:
+            raise HTTPException(status_code=404, detail="Нет сообщений для удаления")
+        
+        deleted_ids = []
+        for chat_id, msg_ids in result.items():
+            deleted_ids.extend(msg_ids)
+            for msg_id in msg_ids:
+                await manager.notify_message_deleted(chat_id, msg_id)
+        
+        return {"deleted_message_ids": deleted_ids}
     except HTTPException:
         raise
     except Exception as e:

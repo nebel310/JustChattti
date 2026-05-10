@@ -382,3 +382,8 @@ class MessageWithContextResponse(MessageResponse):
         None,
         description="Курсор для загрузки более новых сообщений относительно этого"
     )
+
+
+class BatchDeleteResponse(BaseModel):
+    """Ответ с перечнем удалённых ID сообщений"""
+    deleted_message_ids: list[int] = Field(..., example=[1, 2, 3])

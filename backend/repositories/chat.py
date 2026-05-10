@@ -11,6 +11,7 @@ from models.chat import (
 )
 from models.auth import UserOrm
 from models.files import FileOrm
+from repositories.files import FileRepository
 from schemas.chat import ChatCreate, MessageCreate
 from utils.minio_client import minio
 from utils.cursor import decode_cursor, encode_cursor
@@ -758,7 +759,45 @@ class MessageRepository:
             return chat_id
     
     
-    # Новые методы для статусов
+    @classmethod
+    async def delete_messages_batch(cls, message_ids: list[int], user_id: int) -> dict[int, list[int]]:
+        """Массовое удаление сообщений пользователя. Возвращает {chat_id: [message_id]}."""
+        async with new_session() as session:
+            # Получаем сообщения, принадлежащие пользователю
+            stmt = select(MessageOrm.id, MessageOrm.chat_id, MessageOrm.file_id).where(
+                MessageOrm.id.in_(message_ids),
+                MessageOrm.sender_id == user_id
+            )
+            result = await session.execute(stmt)
+            rows = result.all()
+            if not rows:
+                return {}
+
+            valid_ids = [row.id for row in rows]
+            file_ids = [row.file_id for row in rows if row.file_id is not None]
+            
+            # Удаляем сообщения одним запросом
+            delete_stmt = delete(MessageOrm).where(MessageOrm.id.in_(valid_ids))
+            await session.execute(delete_stmt)
+            await session.commit()
+
+            # Группируем по чатам для уведомлений
+            chat_map: dict[int, list[int]] = {}
+            for row in rows:
+                chat_map.setdefault(row.chat_id, []).append(row.id)
+
+            # Удаляем файлы, которые больше не используются
+            for file_id in file_ids:
+                # Проверяем, есть ли ещё сообщения с этим файлом
+                check_stmt = select(func.count(MessageOrm.id)).where(MessageOrm.file_id == file_id)
+                count = (await session.execute(check_stmt)).scalar() or 0
+                if count == 0:
+                    try:
+                        await FileRepository.delete_file(file_id, user_id)
+                    except Exception:
+                        pass  # игнорируем ошибку удаления файла, чтобы не прерывать batch
+            return chat_map
+
     
     @classmethod
     async def mark_as_delivered(cls, message_ids: List[int], user_id: int, chat_id: int) -> List[int]:
