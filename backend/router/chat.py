@@ -9,7 +9,7 @@ from schemas.chat import (
     ChatCreate, ChatResponse, ChatDetailResponse,
     MessageCreate, MessageResponse, MessagesResponse,
     MarkAsReadRequest, CallCreate, CallResponse,
-    MessageWithContextResponse, BatchDeleteResponse
+    MessageWithContextResponse, BatchDeleteResponse, StorageFileType
 )
 from repositories.mute import MuteRepository
 from schemas.base import ErrorResponse, ValidationErrorResponse
@@ -390,6 +390,37 @@ async def delete_messages_batch(
             for msg_id in msg_ids:
                 await manager.notify_message_deleted(chat_id, msg_id)
         
+        return {"deleted_message_ids": deleted_ids}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete(
+    "/chats/messages/files",
+    response_model=BatchDeleteResponse,
+    responses={
+        400: {"model": ErrorResponse, "description": "Неверный тип файла"},
+        401: {"model": ErrorResponse, "description": "Не авторизован"},
+        404: {"model": ErrorResponse, "description": "Нет сообщений для удаления"},
+        500: {"model": ErrorResponse, "description": "Внутренняя ошибка сервера"}
+    }
+)
+async def delete_messages_by_file_type(
+    file_type: Optional[StorageFileType] = Query(None, description="Тип файла: image, video, audio, voice, file"),
+    current_user: UserOrm = Depends(get_current_user)
+):
+    try:
+        ft_str = file_type.value if file_type else None
+        result = await MessageRepository.delete_messages_by_file_type(current_user.id, ft_str)
+        if result["deleted_count"] == 0:
+            raise HTTPException(status_code=404, detail="Нет сообщений для удаления")
+        deleted_ids = []
+        for chat_id, msg_ids in result["chat_map"].items():
+            deleted_ids.extend(msg_ids)
+            for msg_id in msg_ids:
+                await manager.notify_message_deleted(chat_id, msg_id)
         return {"deleted_message_ids": deleted_ids}
     except HTTPException:
         raise

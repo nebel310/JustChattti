@@ -907,3 +907,42 @@ class MessageRepository:
             msg_dict["context_prev_cursor"] = context_cursor
             msg_dict["context_next_cursor"] = context_cursor
             return msg_dict
+
+
+    @classmethod
+    async def delete_messages_by_file_type(cls, user_id: int, file_type: str | None = None) -> dict:
+        async with new_session() as session:
+            file_conditions = [MessageOrm.sender_id == user_id, MessageOrm.file_id.is_not(None)]
+            if file_type is not None:
+                if file_type == "voice":
+                    file_conditions.append(
+                        FileOrm.filetype == "audio",
+                        FileOrm.filesubtype == "voice_message"
+                    )
+                elif file_type == "audio":
+                    file_conditions.append(
+                        FileOrm.filetype == "audio",
+                        FileOrm.filesubtype != "voice_message"
+                    )
+                else:
+                    file_conditions.append(FileOrm.filetype == file_type)
+
+            stmt = select(MessageOrm.id).join(
+                FileOrm, MessageOrm.file_id == FileOrm.id
+            ).where(*file_conditions)
+            result = await session.execute(stmt)
+            msg_ids = [row[0] for row in result.fetchall()]
+
+            if not msg_ids:
+                return {"deleted_count": 0, "chat_map": {}}
+
+            BATCH_SIZE = 10000
+            total_deleted = 0
+            all_chat_map = {}
+            for i in range(0, len(msg_ids), BATCH_SIZE):
+                chunk = msg_ids[i:i+BATCH_SIZE]
+                chat_map = await cls.delete_messages_batch(chunk, user_id)
+                total_deleted += sum(len(v) for v in chat_map.values())
+                for chat_id, ids in chat_map.items():
+                    all_chat_map.setdefault(chat_id, []).extend(ids)
+            return {"deleted_count": total_deleted, "chat_map": all_chat_map}

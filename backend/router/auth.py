@@ -2,11 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query
 
 from models.auth import UserOrm
 from repositories.auth import UserRepository
+from repositories.files import FileRepository
 from schemas.auth import (
     LoginResponse, LogoutResponse, SRefreshToken,
     RefreshResponse, RegisterResponse, SUser,
     SPublicUser, SUserStatus, SUserUpdate,
-    SUserLogin, SUserRegister
+    SUserLogin, SUserRegister, StorageUsageResponse
 )
 from schemas.base import ErrorResponse, ValidationErrorResponse
 from utils.security import create_access_token, get_current_user, oauth2_scheme
@@ -201,6 +202,24 @@ async def get_current_user_info(current_user: UserOrm = Depends(get_current_user
             status_code=500,
             detail="Внутренняя ошибка сервера"
         )
+
+
+@router.get(
+    "/users/me/storage",
+    response_model=StorageUsageResponse,
+    responses={
+        401: {"model": ErrorResponse, "description": "Не авторизован"},
+        500: {"model": ErrorResponse, "description": "Внутренняя ошибка сервера"}
+    }
+)
+async def get_storage_usage(
+    current_user: UserOrm = Depends(get_current_user)
+):
+    try:
+        data = await FileRepository.get_storage_usage(current_user.id)
+        return data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.patch(

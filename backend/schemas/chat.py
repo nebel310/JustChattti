@@ -1,3 +1,4 @@
+from enum import Enum
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 
@@ -386,4 +387,16 @@ class MessageWithContextResponse(MessageResponse):
 
 class BatchDeleteResponse(BaseModel):
     """Ответ с перечнем удалённых ID сообщений"""
+    deleted_message_ids: list[int] = Field(..., example=[1, 2, 3])
+
+
+class StorageFileType(str, Enum):
+    IMAGE = "image"
+    VIDEO = "video"
+    AUDIO = "audio"
+    VOICE = "voice"
+    FILE = "file"
+
+
+class BatchDeleteResponse(BaseModel):
     deleted_message_ids: list[int] = Field(..., example=[1, 2, 3])
