@@ -21,7 +21,7 @@ class FileRepository:
         if file.content_type.startswith('image/'): return 'image'
         if file.content_type.startswith('video/'): return 'video'
         if file.content_type.startswith('audio/'): return 'audio'
-        return 'other'
+        return 'file'
     
     @classmethod
     async def _determine_filesubtype(cls, file_data: SUploadFile):
@@ -180,6 +180,7 @@ class FileRepository:
     @classmethod
     async def get_storage_usage(cls, user_id: int) -> dict:
         async with new_session() as session:
+            # Статистика по типам файлов в сообщениях
             stmt = select(
                 FileOrm.filetype,
                 FileOrm.filesubtype,
@@ -194,30 +195,44 @@ class FileRepository:
 
             rows = (await session.execute(stmt)).all()
 
-            user_stmt = select(UserOrm.storage_used_bytes, UserOrm.storage_limit_bytes).where(UserOrm.id == user_id)
+            # Данные пользователя (лимит, занято, аватар)
+            user_stmt = select(
+                UserOrm.storage_used_bytes,
+                UserOrm.storage_limit_bytes,
+                UserOrm.avatar_id
+            ).where(UserOrm.id == user_id)
             user_row = (await session.execute(user_stmt)).first()
             total_used = user_row.storage_used_bytes if user_row else 0
             limit = user_row.storage_limit_bytes if user_row else 0
 
+            avatar_size = 0
+            if user_row and user_row.avatar_id:
+                av_stmt = select(FileOrm.size).where(FileOrm.id == user_row.avatar_id)
+                av_res = await session.execute(av_stmt)
+                avatar_size = av_res.scalar() or 0
+
             by_type = {}
             for filetype, filesubtype, total_size, cnt in rows:
-                category = filetype
                 if filetype == "audio" and filesubtype == "voice_message":
                     category = "voice"
                 elif filetype == "audio":
                     category = "audio"
+                else:
+                    category = filetype  # image, video, file
+
                 if category not in by_type:
-                    by_type[category] = {"total_bytes": 0, "file_count": 0}
+                    by_type[category] = {"total_bytes": 0, "message_count": 0}
                 by_type[category]["total_bytes"] += total_size or 0
-                by_type[category]["file_count"] += cnt or 0
+                by_type[category]["message_count"] += cnt or 0
 
             by_type_list = [
-                {"file_type": k, "total_bytes": v["total_bytes"], "file_count": v["file_count"]}
+                {"file_type": k, "total_bytes": v["total_bytes"], "message_count": v["message_count"]}
                 for k, v in by_type.items()
             ]
 
             return {
                 "total_used_bytes": total_used,
                 "limit_bytes": limit,
+                "avatar_bytes": avatar_size,
                 "by_type": by_type_list
             }

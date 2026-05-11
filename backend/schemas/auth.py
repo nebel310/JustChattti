@@ -209,7 +209,7 @@ class SRefreshToken(BaseModel):
 class StorageUsageItem(BaseModel):
     file_type: str = Field(..., example="image")
     total_bytes: int = Field(..., example=5242880)
-    file_count: int = Field(..., example=10)
+    message_count: int = Field(..., example=10, description="Количество сообщений с файлами этого типа")
 
 
 class StorageUsageResponse(BaseModel):

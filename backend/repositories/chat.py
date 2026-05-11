@@ -786,18 +786,22 @@ class MessageRepository:
             for row in rows:
                 chat_map.setdefault(row.chat_id, []).append(row.id)
 
-            # Удаляем файлы, которые больше не используются
+            # Удаляем файлы, которые больше не используются и не являются чьей-либо аватаркой
             for file_id in file_ids:
                 # Проверяем, есть ли ещё сообщения с этим файлом
                 check_stmt = select(func.count(MessageOrm.id)).where(MessageOrm.file_id == file_id)
                 count = (await session.execute(check_stmt)).scalar() or 0
                 if count == 0:
-                    try:
-                        await FileRepository.delete_file(file_id, user_id)
-                    except Exception:
-                        pass  # игнорируем ошибку удаления файла, чтобы не прерывать batch
+                    # Проверяем, не используется ли как аватарка любым пользователем
+                    avatar_check = select(func.count(UserOrm.id)).where(UserOrm.avatar_id == file_id)
+                    avatar_count = (await session.execute(avatar_check)).scalar() or 0
+                    if avatar_count == 0:
+                        try:
+                            await FileRepository.delete_file(file_id, user_id)
+                        except Exception:
+                            pass  # ошибка удаления не должна ломать batch
             return chat_map
-
+        
     
     @classmethod
     async def mark_as_delivered(cls, message_ids: List[int], user_id: int, chat_id: int) -> List[int]:
