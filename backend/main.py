@@ -72,37 +72,56 @@ def custom_openapi():
     }
     
     secured_paths = {
+        # Auth
         ("/auth/me", "get"): [{"Bearer": []}],
+        ("/auth/users/me/storage", "get"): [{"Bearer": []}],
         ("/auth/logout", "post"): [{"Bearer": []}],
         ("/auth/user-update", "patch"): [{"Bearer": []}],
+        ("/auth/users/batch", "post"): [{"Bearer": []}],
         ("/auth/users/{user_id}", "get"): [{"Bearer": []}],
         ("/auth/users/{user_id}/status", "get"): [{"Bearer": []}],
         ("/auth/role", "patch"): [{"Bearer": []}],
         ("/auth/user_storage_limit", "patch"): [{"Bearer": []}],
+
+        # Files
         ("/files/upload", "post"): [{"Bearer": []}],
         ("/files/{file_id}", "get"): [{"Bearer": []}],
         ("/files/{file_id}/download", "get"): [{"Bearer": []}],
         ("/files/{file_id}", "delete"): [{"Bearer": []}],
+
+        # Chats
         ("/chats/", "get"): [{"Bearer": []}],
         ("/chats/", "post"): [{"Bearer": []}],
         ("/chats/{chat_id}", "get"): [{"Bearer": []}],
         ("/chats/{chat_id}", "delete"): [{"Bearer": []}],
         ("/chats/{chat_id}/messages", "get"): [{"Bearer": []}],
         ("/chats/{chat_id}/messages", "post"): [{"Bearer": []}],
+
+        # Messages
+        ("/chats/messages/{message_id}", "get"): [{"Bearer": []}],
         ("/chats/messages/{message_id}", "patch"): [{"Bearer": []}],
         ("/chats/messages/{message_id}", "delete"): [{"Bearer": []}],
-        ("/chats/messages/{message_id}", "get"): [{"Bearer": []}],
+        ("/chats/messages/batch", "delete"): [{"Bearer": []}],
+        ("/chats/messages/files", "delete"): [{"Bearer": []}],
         ("/chats/messages/mark-read", "post"): [{"Bearer": []}],
+
+        # Calls
         ("/chats/{chat_id}/calls", "post"): [{"Bearer": []}],
+
+        # Mute
         ("/users/me/muted/{user_id}", "post"): [{"Bearer": []}],
         ("/users/me/muted/{user_id}", "delete"): [{"Bearer": []}],
         ("/users/me/muted/", "get"): [{"Bearer": []}],
+
+        # Search
         ("/search/users", "post"): [{"Bearer": []}],
         ("/search/users/username/{username}", "get"): [{"Bearer": []}],
         ("/search/messages/global", "post"): [{"Bearer": []}],
         ("/search/messages/chat/{chat_id}", "post"): [{"Bearer": []}],
         ("/search/messages/username/{username}", "post"): [{"Bearer": []}],
         ("/search/messages/sender/{user_id}", "get"): [{"Bearer": []}],
+
+        # FCM
         ("/fcm/register", "post"): [{"Bearer": []}],
         ("/fcm/unregister", "delete"): [{"Bearer": []}],
     }

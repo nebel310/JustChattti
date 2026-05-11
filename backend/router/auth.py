@@ -1,12 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, Path
+from fastapi import APIRouter, Depends, HTTPException, Path, Query
 
 from models.auth import UserOrm
 from repositories.auth import UserRepository
+from repositories.files import FileRepository
 from schemas.auth import (
     LoginResponse, LogoutResponse, SRefreshToken,
     RefreshResponse, RegisterResponse, SUser,
     SPublicUser, SUserStatus, SUserUpdate,
-    SUserLogin, SUserRegister
+    SUserLogin, SUserRegister, StorageUsageResponse,
+    BatchUserRequest
 )
 from schemas.base import ErrorResponse, ValidationErrorResponse
 from utils.security import create_access_token, get_current_user, oauth2_scheme
@@ -203,6 +205,24 @@ async def get_current_user_info(current_user: UserOrm = Depends(get_current_user
         )
 
 
+@router.get(
+    "/users/me/storage",
+    response_model=StorageUsageResponse,
+    responses={
+        401: {"model": ErrorResponse, "description": "Не авторизован"},
+        500: {"model": ErrorResponse, "description": "Внутренняя ошибка сервера"}
+    }
+)
+async def get_storage_usage(
+    current_user: UserOrm = Depends(get_current_user)
+):
+    try:
+        data = await FileRepository.get_storage_usage(current_user.id)
+        return data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.patch(
     "/user-update",
     response_model=SUser,
@@ -301,6 +321,26 @@ async def get_user_by_id(
             status_code=500,
             detail=str(e)
         )
+
+
+@router.post(
+    "/users/batch",
+    response_model=list[SPublicUser],
+    responses={
+        401: {"model": ErrorResponse, "description": "Не авторизован"},
+        500: {"model": ErrorResponse}
+    }
+)
+async def get_users_by_ids(
+    request: BatchUserRequest,
+    current_user: UserOrm = Depends(get_current_user)
+):
+    """Получение публичной информации о нескольких пользователях по списку ID."""
+    try:
+        users = await UserRepository.get_users_by_ids(request.user_ids)
+        return [SPublicUser.model_validate(u) for u in users]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get(

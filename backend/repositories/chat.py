@@ -11,6 +11,7 @@ from models.chat import (
 )
 from models.auth import UserOrm
 from models.files import FileOrm
+from repositories.files import FileRepository
 from schemas.chat import ChatCreate, MessageCreate
 from utils.minio_client import minio
 from utils.cursor import decode_cursor, encode_cursor
@@ -758,7 +759,49 @@ class MessageRepository:
             return chat_id
     
     
-    # Новые методы для статусов
+    @classmethod
+    async def delete_messages_batch(cls, message_ids: list[int], user_id: int) -> dict[int, list[int]]:
+        """Массовое удаление сообщений пользователя. Возвращает {chat_id: [message_id]}."""
+        async with new_session() as session:
+            # Получаем сообщения, принадлежащие пользователю
+            stmt = select(MessageOrm.id, MessageOrm.chat_id, MessageOrm.file_id).where(
+                MessageOrm.id.in_(message_ids),
+                MessageOrm.sender_id == user_id
+            )
+            result = await session.execute(stmt)
+            rows = result.all()
+            if not rows:
+                return {}
+
+            valid_ids = [row.id for row in rows]
+            file_ids = [row.file_id for row in rows if row.file_id is not None]
+            
+            # Удаляем сообщения одним запросом
+            delete_stmt = delete(MessageOrm).where(MessageOrm.id.in_(valid_ids))
+            await session.execute(delete_stmt)
+            await session.commit()
+
+            # Группируем по чатам для уведомлений
+            chat_map: dict[int, list[int]] = {}
+            for row in rows:
+                chat_map.setdefault(row.chat_id, []).append(row.id)
+
+            # Удаляем файлы, которые больше не используются и не являются чьей-либо аватаркой
+            for file_id in file_ids:
+                # Проверяем, есть ли ещё сообщения с этим файлом
+                check_stmt = select(func.count(MessageOrm.id)).where(MessageOrm.file_id == file_id)
+                count = (await session.execute(check_stmt)).scalar() or 0
+                if count == 0:
+                    # Проверяем, не используется ли как аватарка любым пользователем
+                    avatar_check = select(func.count(UserOrm.id)).where(UserOrm.avatar_id == file_id)
+                    avatar_count = (await session.execute(avatar_check)).scalar() or 0
+                    if avatar_count == 0:
+                        try:
+                            await FileRepository.delete_file(file_id, user_id)
+                        except Exception:
+                            pass  # ошибка удаления не должна ломать batch
+            return chat_map
+        
     
     @classmethod
     async def mark_as_delivered(cls, message_ids: List[int], user_id: int, chat_id: int) -> List[int]:
@@ -868,3 +911,42 @@ class MessageRepository:
             msg_dict["context_prev_cursor"] = context_cursor
             msg_dict["context_next_cursor"] = context_cursor
             return msg_dict
+
+
+    @classmethod
+    async def delete_messages_by_file_type(cls, user_id: int, file_type: str | None = None) -> dict:
+        async with new_session() as session:
+            file_conditions = [MessageOrm.sender_id == user_id, MessageOrm.file_id.is_not(None)]
+            if file_type is not None:
+                if file_type == "voice":
+                    file_conditions.append(
+                        FileOrm.filetype == "audio",
+                        FileOrm.filesubtype == "voice_message"
+                    )
+                elif file_type == "audio":
+                    file_conditions.append(
+                        FileOrm.filetype == "audio",
+                        FileOrm.filesubtype != "voice_message"
+                    )
+                else:
+                    file_conditions.append(FileOrm.filetype == file_type)
+
+            stmt = select(MessageOrm.id).join(
+                FileOrm, MessageOrm.file_id == FileOrm.id
+            ).where(*file_conditions)
+            result = await session.execute(stmt)
+            msg_ids = [row[0] for row in result.fetchall()]
+
+            if not msg_ids:
+                return {"deleted_count": 0, "chat_map": {}}
+
+            BATCH_SIZE = 10000
+            total_deleted = 0
+            all_chat_map = {}
+            for i in range(0, len(msg_ids), BATCH_SIZE):
+                chunk = msg_ids[i:i+BATCH_SIZE]
+                chat_map = await cls.delete_messages_batch(chunk, user_id)
+                total_deleted += sum(len(v) for v in chat_map.values())
+                for chat_id, ids in chat_map.items():
+                    all_chat_map.setdefault(chat_id, []).extend(ids)
+            return {"deleted_count": total_deleted, "chat_map": all_chat_map}

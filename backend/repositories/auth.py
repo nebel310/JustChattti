@@ -89,6 +89,17 @@ class UserRepository:
             result = await session.execute(query)
 
             return result.scalars().first()
+    
+    
+    @classmethod
+    async def get_users_by_ids(cls, user_ids: list[int]) -> list[UserOrm]:
+        """Получает список пользователей по списку ID."""
+        if not user_ids:
+            return []
+        async with new_session() as session:
+            query = select(UserOrm).where(UserOrm.id.in_(user_ids))
+            result = await session.execute(query)
+            return result.scalars().all()
 
 
     @classmethod

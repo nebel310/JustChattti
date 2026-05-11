@@ -204,3 +204,19 @@ class LogoutResponse(BaseModel):
 class SRefreshToken(BaseModel):
     """Схема получения refresh токена"""
     refresh: str = Field(..., example="eyJhbG...")
+
+
+class StorageUsageItem(BaseModel):
+    file_type: str = Field(..., example="image")
+    total_bytes: int = Field(..., example=5242880)
+    message_count: int = Field(..., example=10, description="Количество сообщений с файлами этого типа")
+
+
+class StorageUsageResponse(BaseModel):
+    total_used_bytes: int = Field(..., example=1073741824)
+    limit_bytes: int = Field(..., example=1073741824)
+    by_type: list[StorageUsageItem] = Field(default_factory=list)
+
+
+class BatchUserRequest(BaseModel):
+    user_ids: list[int] = Field(..., min_length=1, example=[1, 2, 3])

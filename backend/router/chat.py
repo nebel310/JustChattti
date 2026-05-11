@@ -9,7 +9,8 @@ from schemas.chat import (
     ChatCreate, ChatResponse, ChatDetailResponse,
     MessageCreate, MessageResponse, MessagesResponse,
     MarkAsReadRequest, CallCreate, CallResponse,
-    MessageWithContextResponse
+    MessageWithContextResponse, BatchDeleteResponse, BatchDeleteRequest,
+    FileTypeDeleteRequest
 )
 from repositories.mute import MuteRepository
 from schemas.base import ErrorResponse, ValidationErrorResponse
@@ -318,6 +319,76 @@ async def edit_message(
         return message
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete(
+    "/messages/batch",
+    response_model=BatchDeleteResponse,
+    responses={
+        401: {"model": ErrorResponse, "description": "Не авторизован"},
+        404: {"model": ErrorResponse, "description": "Нет сообщений для удаления"},
+        500: {"model": ErrorResponse, "description": "Внутренняя ошибка сервера"}
+    }
+)
+async def delete_messages_batch(
+    request: BatchDeleteRequest,
+    current_user: UserOrm = Depends(get_current_user)
+):
+    """
+    Удаляет несколько сообщений пользователя. Автор может удалить любое своё сообщение.
+    Файлы, прикреплённые к удаляемым сообщениям, также удаляются из хранилища, если они
+    не используются в других сообщениях.
+    """
+    try:
+        result = await MessageRepository.delete_messages_batch(request.message_ids, current_user.id)
+        if not result:
+            raise HTTPException(status_code=404, detail="Нет сообщений для удаления")
+        deleted_ids = []
+        for chat_id, msg_ids in result.items():
+            deleted_ids.extend(msg_ids)
+            for msg_id in msg_ids:
+                await manager.notify_message_deleted(chat_id, msg_id)
+        return {"deleted_message_ids": deleted_ids}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete(
+    "/messages/files",
+    response_model=BatchDeleteResponse,
+    responses={
+        400: {"model": ErrorResponse, "description": "Неверный тип файла"},
+        401: {"model": ErrorResponse, "description": "Не авторизован"},
+        404: {"model": ErrorResponse, "description": "Нет сообщений для удаления"},
+        500: {"model": ErrorResponse, "description": "Внутренняя ошибка сервера"}
+    }
+)
+async def delete_messages_by_file_type(
+    request: FileTypeDeleteRequest,
+    current_user: UserOrm = Depends(get_current_user)
+):
+    """
+    Массовое удаление своих сообщений с файлами указанного типа.
+    Если file_type не указан, удаляются все сообщения с любыми файлами.
+    Файлы из MinIO также удаляются, если они больше не используются.
+    """
+    try:
+        ft_str = request.file_type.value if request.file_type else None
+        result = await MessageRepository.delete_messages_by_file_type(current_user.id, ft_str)
+        if result["deleted_count"] == 0:
+            raise HTTPException(status_code=404, detail="Нет сообщений для удаления")
+        deleted_ids = []
+        for chat_id, msg_ids in result["chat_map"].items():
+            deleted_ids.extend(msg_ids)
+            for msg_id in msg_ids:
+                await manager.notify_message_deleted(chat_id, msg_id)
+        return {"deleted_message_ids": deleted_ids}
     except HTTPException:
         raise
     except Exception as e:
