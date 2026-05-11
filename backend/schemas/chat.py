@@ -398,5 +398,9 @@ class StorageFileType(str, Enum):
     FILE = "file"
 
 
-class BatchDeleteResponse(BaseModel):
-    deleted_message_ids: list[int] = Field(..., example=[1, 2, 3])
+class BatchDeleteRequest(BaseModel):
+    message_ids: list[int] = Field(..., min_length=1, example=[1, 2, 3])
+
+
+class FileTypeDeleteRequest(BaseModel):
+    file_type: StorageFileType | None = Field(None, example="image")

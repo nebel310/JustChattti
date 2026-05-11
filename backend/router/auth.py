@@ -7,7 +7,8 @@ from schemas.auth import (
     LoginResponse, LogoutResponse, SRefreshToken,
     RefreshResponse, RegisterResponse, SUser,
     SPublicUser, SUserStatus, SUserUpdate,
-    SUserLogin, SUserRegister, StorageUsageResponse
+    SUserLogin, SUserRegister, StorageUsageResponse,
+    BatchUserRequest
 )
 from schemas.base import ErrorResponse, ValidationErrorResponse
 from utils.security import create_access_token, get_current_user, oauth2_scheme
@@ -322,7 +323,7 @@ async def get_user_by_id(
         )
 
 
-@router.get(
+@router.post(
     "/users/batch",
     response_model=list[SPublicUser],
     responses={
@@ -331,12 +332,12 @@ async def get_user_by_id(
     }
 )
 async def get_users_by_ids(
-    ids: list[int] = Query(..., description="Список ID пользователей", min_length=1),
+    request: BatchUserRequest,
     current_user: UserOrm = Depends(get_current_user)
 ):
     """Получение публичной информации о нескольких пользователях по списку ID."""
     try:
-        users = await UserRepository.get_users_by_ids(ids)
+        users = await UserRepository.get_users_by_ids(request.user_ids)
         return [SPublicUser.model_validate(u) for u in users]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

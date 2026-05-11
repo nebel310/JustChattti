@@ -216,3 +216,7 @@ class StorageUsageResponse(BaseModel):
     total_used_bytes: int = Field(..., example=1073741824)
     limit_bytes: int = Field(..., example=1073741824)
     by_type: list[StorageUsageItem] = Field(default_factory=list)
+
+
+class BatchUserRequest(BaseModel):
+    user_ids: list[int] = Field(..., min_length=1, example=[1, 2, 3])
