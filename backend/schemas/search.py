@@ -26,6 +26,7 @@ class MessageSearchResult(BaseModel):
     sender_id: Optional[int] = Field(..., example=2)
     sender_username: Optional[str] = Field(..., example="john_doe")
     sender_avatar_url: Optional[str] = Field(None, example="http://minio:9000/images/uuid.jpg")
+    sender_avatar_id: Optional[int] = Field(None, example=5)
     message_type: str = Field(..., example="text")
     content: Optional[str] = Field(..., example="Привет, как дела?")
     file_id: Optional[int] = Field(None, example=5)
@@ -74,10 +75,16 @@ class MessageSearchResponse(BaseModel):
                 "chat_id": 1,
                 "sender_id": 2,
                 "sender_username": "john_doe",
+                "sender_avatar_url": "http://minio:9000/images/uuid.jpg",
+                "sender_avatar_id": 5,
                 "message_type": "text",
                 "content": "Привет, как дела?",
+                "file_id": None,
+                "file_url": None,
+                "reply_to_id": None,
                 "status": "read",
                 "edited": False,
+                "metadata": None,
                 "created_at": "2024-01-01T12:00:00Z",
                 "updated_at": "2024-01-01T12:00:00Z",
                 "context_prev_cursor": "MjAyNC0wMS0wMVQxMjowMDowMCswMDowMHwxMjM=",

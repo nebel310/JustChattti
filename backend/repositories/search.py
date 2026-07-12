@@ -487,6 +487,7 @@ class MessageSearchRepository:
                 "sender_id": message.sender_id,
                 "sender_username": sender_username,
                 "sender_avatar_url": sender_avatar_url,
+                "sender_avatar_id": sender_row.avatar_id if sender_row else None,
                 "sender_metadata": sender_metadata,
                 "message_type": message.message_type,
                 "content": message.content,
