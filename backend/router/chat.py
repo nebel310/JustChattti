@@ -153,6 +153,8 @@ async def delete_chat(
                 detail="Нет прав на удаление чата"
             )
         
+        await manager.notify_chat_deleted(chat_id, deleted_by=current_user.id)
+        
         return {"success": True}
     except HTTPException:
         raise

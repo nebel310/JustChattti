@@ -60,6 +60,9 @@ async def websocket_endpoint(
 
             elif message_type == "read":
                 await manager.handle_read_receipt(websocket, data)
+            
+            elif message_type == "chat_deleted":
+                await manager.handle_delete_chat_request(websocket, data)
 
             else:
                 await websocket.send_json({

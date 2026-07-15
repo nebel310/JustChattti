@@ -289,6 +289,75 @@ class ConnectionManager:
             "message_id": message_id,
             "chat_id": chat_id
         }, chat_id)
+    
+    
+    async def notify_chat_deleted(self, chat_id: int, deleted_by: int):
+        """
+        Уведомляет всех участников чата о том, что чат был удалён.
+        Вызывается из REST-эндпоинта до удаления чата из БД.
+        """
+        try:
+            participant_ids = await self._get_chat_participants(chat_id)
+            if not participant_ids:
+                logger.warning(f"Не удалось получить участников чата {chat_id} для уведомления об удалении")
+                return
+
+            notification = {
+                "type": "chat_deleted",
+                "chat_id": chat_id,
+                "deleted_by": deleted_by,
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+
+            # Уведомляем всех участников, включая инициатора
+            for user_id in participant_ids:
+                await self.send_to_user(notification, user_id)
+
+            logger.info(f"Уведомление об удалении чата {chat_id} отправлено участникам: {participant_ids}")
+        except Exception as e:
+            logger.error(f"Ошибка при уведомлении об удалении чата {chat_id}: {e}")
+    
+    
+    async def handle_delete_chat_request(self, websocket: WebSocket, data: dict):
+        """
+        Клиент хочет удалить чат.
+        Ожидает: { "type": "chat_deleted", "chat_id": int }
+        """
+        user_id = self.connection_users.get(websocket)
+        if not user_id:
+            return
+
+        chat_id = data.get("chat_id")
+        if not chat_id:
+            await self.send_to_user({"type": "error", "error": "chat_id обязателен"}, user_id)
+            return
+
+        try:
+            # Проверяем, является ли пользователь участником чата
+            participant_ids = await self._get_chat_participants(chat_id)
+            if user_id not in participant_ids:
+                await self.send_to_user({"type": "error", "error": "Вы не участник чата"}, user_id)
+                return
+
+            # Удаляем чат (репозиторий должен удалить записи и вернуть True/False)
+            success = await ChatRepository.delete_chat(chat_id, user_id)  # возможно передать user_id для проверки прав
+            if not success:
+                await self.send_to_user({"type": "error", "error": "Не удалось удалить чат"}, user_id)
+                return
+
+            # Уведомляем всех участников (включая инициатора)
+            await self.notify_chat_deleted(chat_id, deleted_by=user_id)
+
+            # Можно отправить подтверждение инициатору
+            await self.send_to_user({
+                "type": "chat_deleted_ack",
+                "chat_id": chat_id,
+                "status": "ok"
+            }, user_id)
+
+        except Exception as e:
+            logger.error(f"Ошибка при удалении чата через WebSocket: {e}")
+            await self.send_to_user({"type": "error", "error": "Внутренняя ошибка сервера"}, user_id)
 
 
     @staticmethod
